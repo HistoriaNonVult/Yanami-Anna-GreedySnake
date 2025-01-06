@@ -3060,6 +3060,10 @@ def start_main_game():
             canvas.delete("milestone")
             fade_factor = max(0, 1.0 - elapsed / 6.0)
             
+            # 预计算常用值
+            elapsed_3 = elapsed * 3
+            elapsed_2_5 = elapsed * 2.5
+            
             # 预分配数组以存储所有绘图命令
             trail_commands = []
             
@@ -3068,8 +3072,8 @@ def start_main_game():
                 x, y, cos_angle, sin_angle, speed, size, color, phase = particles[i]
                 
                 # 更新粒子位置
-                wave = math.sin(elapsed * 3 + phase) * 0.2
-                move_factor = (1 - elapsed/6) * (1 + wave)
+                wave = math.sin(elapsed_3 + phase) * 0.2
+                move_factor = fade_factor * (1 + wave)
                 dx = cos_angle * speed * move_factor
                 dy = sin_angle * speed * move_factor
                 new_x = x + dx
@@ -3078,6 +3082,7 @@ def start_main_game():
                 
                 # 生成轨迹命令
                 trail_length = 12 * fade_factor
+                trail_size = size * fade_factor
                 for t in range(3):
                     trail_factor = 1 - t * 0.3
                     trail_commands.append((
@@ -3085,7 +3090,7 @@ def start_main_game():
                         new_x - cos_angle * trail_length * trail_factor,
                         new_y - sin_angle * trail_length * trail_factor,
                         color,
-                        (size - t * 0.5) * fade_factor
+                        trail_size - t * 0.5
                     ))
             
             # 一次性批量创建所有轨迹
@@ -3095,20 +3100,23 @@ def start_main_game():
             
             # 只在前3秒显示数字效果
             if elapsed < 3.0:
+                # 预计算文本效果参数
                 text_fade = min(1.0, elapsed / 0.5) * (1.0 - max(0, (elapsed - 2.5) / 0.5))
-                scale = (1 + math.sin(elapsed * 2.5) * 0.03) * text_fade
-                
-                # 预计算文本大小和位置
-                base_scaled = int(base_size * scale)
+                scale = (1 + math.sin(elapsed_2_5) * 0.03) * text_fade
                 text_str = str(score)
+                base_scaled = int(base_size * scale)
                 
-                # 批量创建发光效果
+                # 预计算发光效果参数
+                glow_params = []
                 for i in range(3):
                     offset = i * 2 * scale
                     size = base_scaled + i * 2
                     color = accent_colors[min(i, len(accent_colors)-1)]
                     font = ("Arial Black", size, "bold")
-                    
+                    glow_params.append((offset, font, color))
+                
+                # 批量创建发光效果
+                for offset, font, color in glow_params:
                     for dx, dy in text_offsets:
                         canvas.create_text(
                             center_x + dx * offset, 
@@ -3124,10 +3132,11 @@ def start_main_game():
                     fill=accent_colors[0], tags="milestone"
                 )
                 
-                # 批量创建装饰点
+                # 预计算装饰点参数
                 dot_radius = 2 * scale
                 dist = base_size * 1.5
                 
+                # 批量创建装饰点
                 for cos_angle, sin_angle in dot_positions:
                     x = center_x + cos_angle * dist
                     y = center_y + sin_angle * dist
@@ -4177,46 +4186,144 @@ def start_main_game():
             self.x = x
             self.y = y
             self.particles = []
+            # 使用更丰富的渐变色彩
+            self.colors = [
+                "#FFD700", "#FFA500", "#FF69B4", "#FF1493",  # 金色到粉色渐变
+                "#4169E1", "#1E90FF", "#00BFFF", "#87CEEB",  # 蓝色系渐变
+                "#32CD32", "#98FB98", "#00FF7F", "#3CB371",  # 绿色系渐变
+                "#FF4500", "#FF6347", "#FF7F50", "#FFA07A",  # 橙红系渐变
+                "#9370DB", "#8A2BE2", "#9400D3", "#BA55D3"   # 紫色系渐变
+            ]
             self.create_particles()
             
         def create_particles(self):
-            colors = ["#FFD700", "#FF69B4", "#4169E1", "#32CD32", "#FF4500", "#9370DB"]
-            for _ in range(100):
-                angle = random.uniform(0, 2 * math.pi)
-                speed = random.uniform(3, 8)
-                color = random.choice(colors)
-                self.particles.append({
-                    'x': self.x,
-                    'y': self.y,
-                    'dx': math.cos(angle) * speed,
-                    'dy': math.sin(angle) * speed,
-                    'color': color,
-                    'alpha': 1.0,
-                    'size': random.uniform(3, 6)
+            # 预计算一些常用值
+            TWO_PI = 2 * math.pi
+            base_x, base_y = self.x, self.y
+            
+            # 创建基础粒子参数
+            base_particle = {
+                'x': base_x,
+                'y': base_y,
+                'alpha': 1.0
+            }
+            
+            # 预计算角度和速度范围
+            main_angles = [random.uniform(0, TWO_PI) for _ in range(100)]
+            main_speeds = [random.uniform(4, 10) for _ in range(100)]
+            trail_angles = [random.uniform(0, TWO_PI) for _ in range(20)]
+            trail_speeds = [random.uniform(2, 5) for _ in range(20)]
+            
+            # 批量创建主要爆炸效果粒子
+            for angle, speed in zip(main_angles, main_speeds):
+                cos_angle = math.cos(angle)
+                sin_angle = math.sin(angle)
+                dx = cos_angle * speed
+                dy = sin_angle * speed
+                
+                particle = base_particle.copy()
+                particle.update({
+                    'dx': dx,
+                    'dy': dy,
+                    'color': random.choice(self.colors),
+                    'size': random.uniform(2, 6),
+                    'type': 'main',
+                    'sparkle_timer': random.uniform(0, math.pi)
                 })
+                self.particles.append(particle)
+            
+            # 批量创建星光轨迹粒子
+            for angle, speed in zip(trail_angles, trail_speeds):
+                cos_angle = math.cos(angle)
+                sin_angle = math.sin(angle)
+                dx = cos_angle * speed
+                dy = sin_angle * speed
+                
+                particle = base_particle.copy()
+                particle.update({
+                    'dx': dx,
+                    'dy': dy,
+                    'color': random.choice(self.colors),
+                    'size': random.uniform(3, 8),
+                    'type': 'trail',
+                    'trail': []
+                })
+                self.particles.append(particle)
 
         def update_and_draw(self, canvas):
-            alive = False
-            canvas.delete("celebration_firework")  # 只删除烟花相关的元素
+            canvas.delete("celebration_firework")
+            alive_particles = []
+            
+            # 预计算重力和透明度衰减
+            MAIN_GRAVITY = 0.15
+            TRAIL_GRAVITY = 0.08
+            MAIN_ALPHA_DECAY = 0.013
+            TRAIL_ALPHA_DECAY = 0.01
             
             for p in self.particles:
+                # 更新位置
                 p['x'] += p['dx']
                 p['y'] += p['dy']
-                p['dy'] += 0.15
-                p['alpha'] -= 0.01
                 
-                if p['alpha'] > 0:
-                    alive = True
-                    size = p['size'] * p['alpha']
-                    canvas.create_oval(
-                        p['x'] - size, p['y'] - size,
-                        p['x'] + size, p['y'] + size,
-                        fill=p['color'],
-                        outline='',
-                        tags="celebration_firework",
-                        stipple='gray50' if p['alpha'] < 0.5 else ''
-                    )
-            return alive
+                if p['type'] == 'main':
+                    p['dy'] += MAIN_GRAVITY
+                    p['alpha'] -= MAIN_ALPHA_DECAY
+                    p['sparkle_timer'] += 0.2
+                    
+                    if p['alpha'] > 0.1:
+                        alive_particles.append(p)
+                        # 一次性计算所有需要的值
+                        sparkle = math.sin(p['sparkle_timer']) * 0.3 + 0.7
+                        size = p['size'] * p['alpha'] * sparkle
+                        x, y = p['x'], p['y']
+                        size_1_5 = size * 1.5
+                        color = p['color']
+                        
+                        # 批量绘制
+                        canvas.create_oval(
+                            x - size_1_5, y - size_1_5,
+                            x + size_1_5, y + size_1_5,
+                            fill=color,
+                            outline='',
+                            tags="celebration_firework",
+                            stipple='gray25'
+                        )
+                        canvas.create_oval(
+                            x - size, y - size,
+                            x + size, y + size,
+                            fill=color,
+                            outline='white' if p['alpha'] > 0.8 else '',
+                            tags="celebration_firework"
+                        )
+                
+                elif p['type'] == 'trail':
+                    p['dy'] += TRAIL_GRAVITY
+                    p['alpha'] -= TRAIL_ALPHA_DECAY
+                    
+                    # 使用列表推导式更新轨迹
+                    p['trail'].append((p['x'], p['y']))
+                    if len(p['trail']) > 10:
+                        p['trail'] = p['trail'][-10:]
+                    
+                    if p['alpha'] > 0.1:
+                        alive_particles.append(p)
+                        trail_len = len(p['trail'])
+                        base_width = p['size'] * p['alpha']
+                        color = p['color']
+                        
+                        # 使用zip优化轨迹绘制
+                        for i, (p1, p2) in enumerate(zip(p['trail'][:-1], p['trail'][1:])):
+                            ratio = i / trail_len
+                            canvas.create_line(
+                                p1[0], p1[1], p2[0], p2[1],
+                                fill=color,
+                                width=base_width * ratio,
+                                tags="celebration_firework",
+                                capstyle=tk.ROUND
+                            )
+            
+            self.particles = alive_particles
+            return bool(alive_particles)
 
     def show_celebration_firework():
         firework = CelebrationFirework(200, 150)
@@ -4411,90 +4518,96 @@ def start_main_game():
                                     if frame < max_frames:
                                         progress = frame / max_frames
                                         
-                                        # 闪烁光晕效果
-                                        glow_radius = 50 + math.sin(frame * 0.1) * 5
+                                        # 预计算常用值
+                                        center_x, center_y = 200, 60
+                                        
+                                        # 闪烁光晕效果 - 使用预计算的sin值
+                                        sin_val = math.sin(frame * 0.1)
+                                        glow_radius = 50 + sin_val * 5
                                         glow_alpha = int(128 * (1 - progress))
                                         glow_color = f"#{glow_alpha:02x}FFD7"
-                                        canvas.create_oval(
-                                            200 - glow_radius, 60 - glow_radius,
-                                            200 + glow_radius, 60 + glow_radius,
-                                            fill=glow_color,
-                                            outline=""
-                                        )
                                         
-                                        # NEW RECORD 标题带渐变效果
+                                        # 批量创建图形
+                                        items = []
+                                        
+                                        # 光晕
+                                        items.append(('oval', (
+                                            center_x - glow_radius, center_y - glow_radius,
+                                            center_x + glow_radius, center_y + glow_radius,
+                                            glow_color, ""
+                                        )))
+                                        
+                                        # NEW RECORD 标题
                                         if frame > 20:
                                             fade_in = min(1.0, (frame - 20) / 30)
                                             text_color = f"#{int(255*fade_in):02x}FFFF"
-                                            # 添加描边效果
-                                            canvas.create_text(
-                                                200, 60,
-                                                text="NEW RECORD",
-                                                fill=text_color,
-                                                font=("Helvetica", 32, "bold"),
-                                                activefill="#FFD700"
-                                            )
+                                            items.append(('text', (
+                                                center_x, center_y, "NEW RECORD",
+                                                text_color, "#FFD700", ("Helvetica", 32, "bold")
+                                            )))
                                         
                                         # 动态分割线
                                         if frame > 40:
                                             line_progress = min(1.0, (frame - 40) / 40)
                                             line_width = 160 * line_progress
-                                            # 添加双线效果
+                                            half_width = line_width/2
                                             for offset in [-1, 1]:
-                                                canvas.create_line(
-                                                    200 - line_width/2, 85 + offset,
-                                                    200 + line_width/2, 85 + offset,
-                                                    fill="#FFD700",
-                                                    width=1,
-                                                    capstyle=tk.ROUND
-                                                )
+                                                items.append(('line', (
+                                                    center_x - half_width, 85 + offset,
+                                                    center_x + half_width, 85 + offset,
+                                                    "#FFD700", 1
+                                                )))
                                         
-                                        # 分数显示 - 带动画效果
+                                        # 分数显示
                                         if frame > 60:
                                             score_scale = min(1.0, (frame - 60) / 20)
-                                            font_size = int(42 * score_scale)  # 进一步增大字体
+                                            font_size = int(42 * score_scale)
+                                            score_text = f"{current_score:,}"
+                                            font = ("Arial Black", font_size, "bold")
                                             
-                                            # 添加多层阴影效果增强立体感
-                                            shadow_offsets = [(2,2), (1,1), (-1,-1), (-2,-2)]
-                                            for offset_x, offset_y in shadow_offsets:
-                                                canvas.create_text(
-                                                    200 + offset_x, 120 + offset_y,
-                                                    text=f"{current_score:,}",
-                                                    fill="#000000",
-                                                    font=("Arial Black", font_size, "bold")  # 使用更粗的字体
-                                                )
+                                            # 阴影
+                                            for offset_x, offset_y in ((2,2), (1,1), (-1,-1), (-2,-2)):
+                                                items.append(('text', (
+                                                    center_x + offset_x, 120 + offset_y,
+                                                    score_text, "#000000", None, font
+                                                )))
                                             
-                                            # 白色边框增加对比度
-                                            canvas.create_text(
-                                                200, 120,
-                                                text=f"{current_score:,}",
-                                                fill="#FFFFFF",
-                                                font=("Arial Black", font_size, "bold")
-                                            )
+                                            # 白色边框和主体数字
+                                            items.append(('text', (
+                                                center_x, 120, score_text,
+                                                "#FFFFFF", None, font
+                                            )))
+                                            items.append(('text', (
+                                                center_x, 120, score_text,
+                                                "#FFD700", None, font
+                                            )))
                                             
-                                            # 主体数字
-                                            canvas.create_text(
-                                                200, 120,
-                                                text=f"{current_score:,}",
-                                                fill="#FFD700",
-                                                font=("Arial Black", font_size, "bold")
-                                            )
-                                            
-                                            # 添加闪光粒子效果
+                                            # 每4帧添加一次粒子
                                             if frame % 4 == 0:
                                                 particle_x = random.choice([random.randint(120,160), random.randint(240,280)])
                                                 particle_y = 120 + random.randint(-20, 20)
                                                 particle_size = random.randint(2, 4)
-                                                canvas.create_oval(
+                                                items.append(('oval', (
                                                     particle_x - particle_size,
                                                     particle_y - particle_size,
                                                     particle_x + particle_size,
                                                     particle_y + particle_size,
-                                                    fill="#FFFACD",
-                                                    outline=""
-                                                )
+                                                    "#FFFACD", ""
+                                                )))
                                         
-                                        window.after(16, lambda: create_elegant_effect(frame + 1))
+                                        # 批量绘制所有图形
+                                        for item_type, args in items:
+                                            if item_type == 'oval':
+                                                x1,y1,x2,y2,fill,outline = args
+                                                canvas.create_oval(x1,y1,x2,y2,fill=fill,outline=outline)
+                                            elif item_type == 'text':
+                                                x,y,text,fill,activefill,font = args
+                                                canvas.create_text(x,y,text=text,fill=fill,activefill=activefill,font=font)
+                                            elif item_type == 'line':
+                                                x1,y1,x2,y2,fill,width = args
+                                                canvas.create_line(x1,y1,x2,y2,fill=fill,width=width,capstyle=tk.ROUND)
+                                        
+                                        window.after(20, lambda: create_elegant_effect(frame + 1))
                                 
                                 # 启动优雅特效
                                 create_elegant_effect()
@@ -4515,8 +4628,11 @@ def start_main_game():
                                     except:
                                         pass
                                     
-                                    # 2秒后创建下一个烟花，直到达到3次
-                                    window.after(2000, lambda: show_celebration(count + 1))
+                                    # 第一次和第二次间隔1.8s,第二次和第三次间隔3s
+                                    if count == 0:
+                                        window.after(1800, lambda: show_celebration(count + 1))
+                                    elif count == 1:
+                                        window.after(3100, lambda: show_celebration(count + 1))
                                 
                                 # 开始第一次烟花
                                 show_celebration()
