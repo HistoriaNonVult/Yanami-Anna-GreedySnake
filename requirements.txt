@@ -4,7 +4,6 @@ tkinter
 PIL
 random
 pygame
-os
 math
 time
 sys
