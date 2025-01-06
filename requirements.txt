@@ -3,7 +3,6 @@ Pillow
 tkinter
 PIL
 random
-pygame
 math
 time
 sys
