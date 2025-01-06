@@ -2264,7 +2264,15 @@ class StartPage:
                     else:
                         # 切换到游戏
                         if self.music_mode.get() in ["always", "conditional"]:
-                            pygame.mixer.music.load(os.path.join(current_dir, "assets", "music", "background.mp3"))
+                            # 从5首背景音乐中随机选择一首
+                            background_music = random.choice([
+                                "background.mp3",
+                                "background2.mp3", 
+                                "background3.mp3",
+                                "background4.mp3",
+                                "background5.mp3"
+                            ])
+                            pygame.mixer.music.load(os.path.join(current_dir, "assets", "music", background_music))
                             pygame.mixer.music.play(-1)
                         self.window.destroy()
                         start_main_game()
@@ -2649,7 +2657,7 @@ def start_main_game():
         fill=tk.NONE         # 不需要填充
     )
     # 修改背景图片加载径
-    background_images = ['background.jpg', 'background2.jpg','background3.jpg','background4.jpg']
+    background_images = ['background.jpg', 'background2.jpg','background3.jpg','background4.jpg','background5.jpg']
     selected_bg = random.choice(background_images)
     bg_image_path = os.path.join(current_dir, "assets", "images", selected_bg)
     image = Image.open(bg_image_path)
