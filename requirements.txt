@@ -1,0 +1,15 @@
+pygame
+Pillow
+tkinter
+PIL
+random
+pygame
+os
+math
+time
+sys
+pathlib
+customtkinter
+collections
+ctypes
+pywinstyles
