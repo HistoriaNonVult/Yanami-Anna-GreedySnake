@@ -3064,21 +3064,33 @@ def start_main_game():
             
             if elapsed >= 6.0:
                 return
-                
-            canvas.delete("milestone")
-            fade_factor = max(0, 1.0 - elapsed / 6.0)
             
-            # 预计算常用值
+            # 使用列表缓存所有绘图命令,避免频繁调用canvas方法
+            # 预分配固定大小的列表以减少内存分配
+            draw_buffer = []
+            draw_buffer_size = PARTICLE_COUNT * 3 + 20  # 估计所需的最大缓冲区大小
+            draw_buffer = [None] * draw_buffer_size
+            buffer_index = 0
+            
+            # 预计算所有常用值,避免重复计算
+            fade_factor = max(0, 1.0 - elapsed / 6.0)
             elapsed_3 = elapsed * 3
             elapsed_2_5 = elapsed * 2.5
+            sin_elapsed_2_5 = math.sin(elapsed_2_5)
+            text_fade = min(1.0, elapsed / 0.5) * (1.0 - max(0, (elapsed - 2.5) / 0.5))
+            scale = (1 + sin_elapsed_2_5 * 0.03) * text_fade
+            base_scaled = int(base_size * scale)
             
-            # 预分配数组以存储所有绘图命令
-            trail_commands = []
+            # 预计算轨迹参数
+            trail_length = 12 * fade_factor
+            trail_factors = [0.7, 0.4, 0.1]  # 预计算衰减因子
             
-            # 批量更新粒子并生成轨迹命令
-            for i in range(PARTICLE_COUNT):
-                x, y, cos_angle, sin_angle, speed, size, color, phase = particles[i]
-                
+            # 使用数组而不是列表来存储粒子数据
+            new_particle_data = [None] * (len(particles) * 8)  # 8个属性
+            particle_index = 0
+            
+            # 批量更新粒子并生成轨迹
+            for x, y, cos_angle, sin_angle, speed, size, color, phase in particles:
                 # 更新粒子位置
                 wave = math.sin(elapsed_3 + phase) * 0.2
                 move_factor = fade_factor * (1 + wave)
@@ -3086,74 +3098,87 @@ def start_main_game():
                 dy = sin_angle * speed * move_factor
                 new_x = x + dx
                 new_y = y + dy
-                particles[i] = (new_x, new_y, cos_angle, sin_angle, speed, size, color, phase)
+                
+                # 直接更新数组
+                idx = particle_index * 8
+                new_particle_data[idx:idx+8] = [new_x, new_y, cos_angle, sin_angle, speed, size, color, phase]
+                particle_index += 1
                 
                 # 生成轨迹命令
-                trail_length = 12 * fade_factor
                 trail_size = size * fade_factor
-                for t in range(3):
-                    trail_factor = 1 - t * 0.3
-                    trail_commands.append((
-                        new_x, new_y,
-                        new_x - cos_angle * trail_length * trail_factor,
-                        new_y - sin_angle * trail_length * trail_factor,
-                        color,
-                        trail_size - t * 0.5
-                    ))
+                for t, factor in enumerate(trail_factors):
+                    if buffer_index < draw_buffer_size:
+                        draw_buffer[buffer_index] = ('line', (
+                            new_x, new_y,
+                            new_x - cos_angle * trail_length * factor,
+                            new_y - sin_angle * trail_length * factor,
+                            color,
+                            trail_size * (1 - t * 0.3)
+                        ))
+                        buffer_index += 1
             
-            # 一次性批量创建所有轨迹
-            for x1, y1, x2, y2, color, width in trail_commands:
-                canvas.create_line(x1, y1, x2, y2, fill=color, width=width,
-                                 capstyle=tk.ROUND, tags="milestone")
+            # 更新粒子数据
+            particles[:] = zip(*[iter(new_particle_data)]*8)
             
             # 只在前3秒显示数字效果
             if elapsed < 3.0:
-                # 预计算文本效果参数
-                text_fade = min(1.0, elapsed / 0.5) * (1.0 - max(0, (elapsed - 2.5) / 0.5))
-                scale = (1 + math.sin(elapsed_2_5) * 0.03) * text_fade
                 text_str = str(score)
-                base_scaled = int(base_size * scale)
                 
-                # 预计算发光效果参数
-                glow_params = []
-                for i in range(3):
-                    offset = i * 2 * scale
-                    size = base_scaled + i * 2
-                    color = accent_colors[min(i, len(accent_colors)-1)]
-                    font = ("Arial Black", size, "bold")
-                    glow_params.append((offset, font, color))
+                # 预计算文本效果参数
+                text_params = [(i * 2 * scale, 
+                              ("Arial Black", base_scaled + i * 2, "bold"),
+                              accent_colors[min(i, len(accent_colors)-1)])
+                             for i in range(3)]
                 
-                # 批量创建发光效果
-                for offset, font, color in glow_params:
+                # 批量生成文本效果
+                for offset, font, color in text_params:
                     for dx, dy in text_offsets:
-                        canvas.create_text(
-                            center_x + dx * offset, 
-                            center_y + dy * offset,
-                            text=text_str, font=font, 
-                            fill=color, tags="milestone"
-                        )
+                        if buffer_index < draw_buffer_size:
+                            draw_buffer[buffer_index] = ('text', (
+                                center_x + dx * offset,
+                                center_y + dy * offset,
+                                text_str, font, color
+                            ))
+                            buffer_index += 1
                 
-                # 创建中心文本
-                canvas.create_text(
-                    center_x, center_y, text=text_str,
-                    font=("Arial Black", base_scaled, "bold"),
-                    fill=accent_colors[0], tags="milestone"
-                )
+                # 中心文本
+                if buffer_index < draw_buffer_size:
+                    draw_buffer[buffer_index] = ('text', (
+                        center_x, center_y, text_str,
+                        ("Arial Black", base_scaled, "bold"),
+                        accent_colors[0]
+                    ))
+                    buffer_index += 1
                 
-                # 预计算装饰点参数
+                # 批量生成装饰点
                 dot_radius = 2 * scale
                 dist = base_size * 1.5
-                
-                # 批量创建装饰点
                 for cos_angle, sin_angle in dot_positions:
-                    x = center_x + cos_angle * dist
-                    y = center_y + sin_angle * dist
-                    canvas.create_oval(
-                        x - dot_radius, y - dot_radius,
-                        x + dot_radius, y + dot_radius,
-                        fill=accent_colors[1], outline="",
-                        tags="milestone"
-                    )
+                    if buffer_index < draw_buffer_size:
+                        x = center_x + cos_angle * dist
+                        y = center_y + sin_angle * dist
+                        draw_buffer[buffer_index] = ('oval', (
+                            x - dot_radius,
+                            y - dot_radius,
+                            x + dot_radius,
+                            y + dot_radius,
+                            accent_colors[1]
+                        ))
+                        buffer_index += 1
+            
+            # 清除旧内容并批量执行绘图命令
+            canvas.delete("milestone")
+            for i in range(buffer_index):
+                cmd_type, args = draw_buffer[i]
+                if cmd_type == 'line':
+                    canvas.create_line(*args[:4], fill=args[4], width=args[5],
+                                     capstyle=tk.ROUND, tags="milestone")
+                elif cmd_type == 'text':
+                    canvas.create_text(*args[:2], text=args[2], font=args[3],
+                                     fill=args[4], tags="milestone")
+                else:  # oval
+                    canvas.create_oval(*args[:4], fill=args[4],
+                                     outline="", tags="milestone")
             
             canvas.after(16, animate_milestone)
         
@@ -3313,83 +3338,113 @@ def start_main_game():
     
     # 更新粒子效果
     def update_particles():
-        # 使用列表推导式优化遍历
-        new_particles = []
+        # 缓存频繁使用的对象和方法
+        canvas_ref = canvas
+        create_oval = canvas_ref.create_oval
+        delete = canvas_ref.delete
         
-        for particle in particles:
+        # 预计算常量值并复用
+        current_time = time.time() * 10
+        trail_coords = [0] * 4  # 重用坐标数组
+        particle_coords = [0] * 4
+        
+        # 使用列表推导式过滤无效粒子,减少遍历次数
+        active_particles = []
+        particle_count = len(particles)
+        
+        # 预分配固定大小的缓冲区
+        trail_buffer = []
+        trail_buffer_size = 50  # 根据实际需求调整
+        for _ in range(trail_buffer_size):
+            trail_buffer.append([0] * 4)
+        
+        i = 0
+        while i < particle_count:
+            particle = particles[i]
+            
+            # 快速检查alpha值
             if particle.alpha <= 0:
                 if particle.id:
-                    canvas.delete(particle.id)
-                    for trail_id in particle.trail:
-                        canvas.delete(trail_id)
+                    delete(particle.id)
+                    if particle.trail:
+                        delete(*particle.trail)
+                i += 1
                 continue
                 
-            # 更新速度和位置
-            particle.speed_y += particle.gravity
-            particle.speed_x *= particle.drag
-            particle.speed_y *= particle.drag
+            # 物理属性批量更新
+            drag = particle.drag
+            particle.speed_y = (particle.speed_y + particle.gravity) * drag
+            particle.speed_x *= drag
             
-            # 保存前一位置用于绘制尾迹
-            old_x, old_y = particle.x, particle.y
+            # 位置更新
+            old_x = particle.x
+            old_y = particle.y
             particle.x += particle.speed_x
             particle.y += particle.speed_y
             
-            # 更新alpha值
-            particle.base_alpha -= 0.02
+            # Alpha值更新
+            base_alpha = particle.base_alpha - 0.02
+            particle.base_alpha = base_alpha
+            particle.alpha = max(0, min(1, base_alpha * (math.sin(current_time + particle.flicker_offset) * 0.3 + 0.7)))
             
-            # 预计算闪烁值
-            flicker = math.sin(time.time() * 10 + particle.flicker_offset) * 0.3 + 0.7
-            particle.alpha = max(0, min(1, particle.base_alpha * flicker))
-            
-            # 删除旧的粒子和尾迹
+            # 清除旧图形
             if particle.id:
-                canvas.delete(particle.id)
-            for trail_id in particle.trail:
-                canvas.delete(trail_id)
-            particle.trail = []
+                delete(particle.id)
+                if particle.trail:
+                    delete(*particle.trail)
+                    particle.trail = []
             
-            # 绘制尾迹
-            if particle.base_alpha > 0.3:
+            # 优化尾迹绘制
+            if base_alpha > 0.3:
                 trail_alpha = particle.alpha
-                # 预计算重复使用的值
                 dx = (particle.x - old_x) / particle.trail_length
                 dy = (particle.y - old_y) / particle.trail_length
+                trail_ids = []
+                base_size = particle.size * particle.alpha
                 
-                for i in range(particle.trail_length):
-                    trail_x = old_x + dx * i
-                    trail_y = old_y + dy * i
-                    trail_size = particle.size * (0.5 + i / particle.trail_length) * particle.alpha
-                    half_size = trail_size/2
+                # 使用预分配的缓冲区绘制尾迹
+                for j in range(particle.trail_length):
+                    trail_x = old_x + dx * j
+                    trail_y = old_y + dy * j
+                    trail_size = base_size * (0.5 + j / particle.trail_length)
+                    half_size = trail_size * 0.5
                     
-                    trail_id = canvas.create_oval(
-                        trail_x - half_size,
-                        trail_y - half_size,
-                        trail_x + half_size,
-                        trail_y + half_size,
+                    coords = trail_buffer[j]
+                    coords[0] = trail_x - half_size
+                    coords[1] = trail_y - half_size
+                    coords[2] = trail_x + half_size
+                    coords[3] = trail_y + half_size
+                    
+                    trail_ids.append(create_oval(
+                        *coords,
                         fill=particle.color,
                         stipple='gray50' if trail_alpha < 0.5 else '',
                         width=0
-                    )
-                    particle.trail.append(trail_id)
+                    ))
                     trail_alpha *= 0.6
+                
+                particle.trail = trail_ids
             
-            # 绘制主粒子
+            # 主粒子绘制
             current_size = particle.size * particle.alpha
-            half_size = current_size/2
-            particle.id = canvas.create_oval(
-                particle.x - half_size,
-                particle.y - half_size,
-                particle.x + half_size,
-                particle.y + half_size,
+            half_size = current_size * 0.5
+            particle_coords[0] = particle.x - half_size
+            particle_coords[1] = particle.y - half_size
+            particle_coords[2] = particle.x + half_size
+            particle_coords[3] = particle.y + half_size
+            
+            particle.id = create_oval(
+                *particle_coords,
                 fill=particle.color,
                 stipple='gray50' if particle.alpha < 0.5 else '',
                 width=0
             )
             
-            new_particles.append(particle)
+            active_particles.append(particle)
+            i += 1
             
-        # 一次性更新粒子列表
-        particles[:] = new_particles
+        # 原地更新粒子列表
+        particles[:] = active_particles
     
     def toggle_pause():
         nonlocal game_paused
