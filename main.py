@@ -3466,8 +3466,9 @@ def start_main_game():
     
     def reset_game(event=None):
         nonlocal snake, snake_direction, food, game_running, current_score, game_paused, snake_speed
-        nonlocal color_chose
-        
+        nonlocal color_chose,gradient_colors
+        gradient_colors = generate_gradient_colors(30)  # 30个渐变色
+
         for after_id in window.tk.eval('after info').split():
             try:
                 window.after_cancel(int(after_id))
