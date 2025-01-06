@@ -1,2 +1,2 @@
-Anna Yanami-themed snake game
+Anna Yanami-themed snake game   
 By wzy
