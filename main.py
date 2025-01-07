@@ -2777,62 +2777,61 @@ def start_main_game():
     offset = [0]  # 用于颜色偏移
     
     def update_border_color():
-        offset[0] = (offset[0] + 1) % len(gradient_colors)
-        
-        # 清除旧的内容
-        border_left.delete("all")
-        border_bottom.delete("all")
-        border_right.delete("all")
-        
         # 预先计算常用值
         segments_per_border = 30  # 每个边框30段
         height_per_segment = 445 / segments_per_border
         width_per_segment = 405 / segments_per_border
         gradient_len = len(gradient_colors)
         
-        # 预先计算所有需要的颜色索引
-        left_colors = [(i + offset[0]) % gradient_len for i in range(segments_per_border)]
-        right_colors = [(i + segments_per_border + offset[0]) % gradient_len for i in range(segments_per_border)]
-        bottom_colors = [(i + 2 * segments_per_border + offset[0]) % gradient_len for i in range(segments_per_border)]
+        # 更新偏移量
+        offset[0] = (offset[0] + 1) % gradient_len
         
+        # 预先计算所有需要的颜色索引和颜色
+        color_indices = [(i + offset[0]) % gradient_len for i in range(segments_per_border * 3)]
+        colors = [gradient_colors[i] for i in color_indices]
+        
+        # 分配颜色给各个边框
+        left_colors = colors[:segments_per_border]
+        right_colors = colors[segments_per_border:segments_per_border*2]
+        bottom_colors = colors[segments_per_border*2:]
+        
+        # 清除旧的内容
+        for canvas in [border_left, border_right, border_bottom]:
+            canvas.delete("all")
+            
         # 批量创建图形数据
         def create_border_rects(colors, is_vertical):
             rects = []
-            for i, color_index in enumerate(colors):
-                glow_color = gradient_colors[color_index]
+            for i, color in enumerate(colors):
                 if is_vertical:
                     y1 = i * height_per_segment
                     y2 = (i + 1) * height_per_segment
                     rects.extend([
-                        (-2, y1-2, 7, y2+2, glow_color, "gray50"),
-                        (0, y1, 5, y2, glow_color, "")
+                        (-2, y1-2, 7, y2+2, color, "gray50"),
+                        (0, y1, 5, y2, color, "")
                     ])
                 else:
                     x1 = i * width_per_segment
                     x2 = (i + 1) * width_per_segment
                     rects.extend([
-                        (x1-2, -2, x2+2, 8, glow_color, "gray50"),
-                        (x1, 0, x2, 6, glow_color, "")
+                        (x1-2, -2, x2+2, 8, color, "gray50"),
+                        (x1, 0, x2, 6, color, "")
                     ])
             return rects
             
-        # 生成所有边框的矩形数据
-        left_rects = create_border_rects(left_colors, True)
-        right_rects = create_border_rects(right_colors, True)
-        bottom_rects = create_border_rects(bottom_colors, False)
-        
-        # 批量绘制
-        for canvas, rects in [
-            (border_left, left_rects),
-            (border_right, right_rects),
-            (border_bottom, bottom_rects)
+        # 生成并绘制所有边框
+        for canvas, colors, is_vertical in [
+            (border_left, left_colors, True),
+            (border_right, right_colors, True), 
+            (border_bottom, bottom_colors, False)
         ]:
+            rects = create_border_rects(colors, is_vertical)
             for x1, y1, x2, y2, color, stipple in rects:
                 canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="", stipple=stipple)
         
         # 绘制圆角连接处
-        left_corner_color = gradient_colors[(segments_per_border + offset[0] - 1) % gradient_len]
-        right_corner_color = gradient_colors[(2 * segments_per_border + offset[0] - 1) % gradient_len]
+        left_corner_color = left_colors[-1]
+        right_corner_color = right_colors[-1]
         
         # 左下角
         border_left.create_arc(-2, 438, 12, 452, start=180, extent=90, fill=left_corner_color, stipple="gray50")
@@ -4613,51 +4612,60 @@ def start_main_game():
                                         # 动态分割线
                                         if frame > 40:
                                             line_progress = min(1.0, (frame - 40) / 40)
-                                            line_width = 160 * line_progress
-                                            half_width = line_width/2
-                                            for offset in [-1, 1]:
-                                                items.append(('line', (
-                                                    center_x - half_width, 85 + offset,
-                                                    center_x + half_width, 85 + offset,
-                                                    "#FFD700", 1
-                                                )))
+                                            half_width = 80 * line_progress  # 直接计算半宽度,避免重复计算
+                                            y_base = 85  # 基准y坐标
+                                            
+                                            # 一次性计算x坐标
+                                            x1 = center_x - half_width
+                                            x2 = center_x + half_width
+                                            
+                                            items.extend([
+                                                ('line', (x1, y_base - 1, x2, y_base - 1, "#FFD700", 1)),
+                                                ('line', (x1, y_base + 1, x2, y_base + 1, "#FFD700", 1))
+                                            ])
                                         
                                         # 分数显示
                                         if frame > 60:
+                                            # 预先计算常用值
                                             score_scale = min(1.0, (frame - 60) / 20)
                                             font_size = int(42 * score_scale)
                                             score_text = f"{current_score:,}"
                                             font = ("Arial Black", font_size, "bold")
+                                            y_pos = 120
                                             
-                                            # 阴影
-                                            for offset_x, offset_y in ((2,2), (1,1), (-1,-1), (-2,-2)):
-                                                items.append(('text', (
-                                                    center_x + offset_x, 120 + offset_y,
-                                                    score_text, "#000000", None, font
-                                                )))
+                                            # 阴影偏移量预先定义
+                                            shadow_offsets = ((2,2), (1,1), (-1,-1), (-2,-2))
                                             
-                                            # 白色边框和主体数字
-                                            items.append(('text', (
-                                                center_x, 120, score_text,
-                                                "#FFFFFF", None, font
-                                            )))
-                                            items.append(('text', (
-                                                center_x, 120, score_text,
-                                                "#FFD700", None, font
-                                            )))
+                                            # 批量添加阴影文本
+                                            shadow_items = [('text', (
+                                                center_x + offset_x, y_pos + offset_y,
+                                                score_text, "#000000", None, font
+                                            )) for offset_x, offset_y in shadow_offsets]
+                                            items.extend(shadow_items)
+                                            
+                                            # 添加主体文本
+                                            text_items = [
+                                                ('text', (center_x, y_pos, score_text, color, None, font))
+                                                for color in ("#FFFFFF", "#FFD700")
+                                            ]
+                                            items.extend(text_items)
                                             
                                             # 每4帧添加一次粒子
                                             if frame % 4 == 0:
-                                                particle_x = random.choice([random.randint(120,160), random.randint(240,280)])
-                                                particle_y = 120 + random.randint(-20, 20)
+                                                # 预定义x轴范围
+                                                x_ranges = [(120,160), (240,280)]
+                                                particle_x = random.randint(*random.choice(x_ranges))
+                                                particle_y = y_pos + random.randint(-20, 20)
                                                 particle_size = random.randint(2, 4)
-                                                items.append(('oval', (
+                                                
+                                                # 计算粒子坐标
+                                                p_coords = (
                                                     particle_x - particle_size,
                                                     particle_y - particle_size,
                                                     particle_x + particle_size,
-                                                    particle_y + particle_size,
-                                                    "#FFFACD", ""
-                                                )))
+                                                    particle_y + particle_size
+                                                )
+                                                items.append(('oval', (*p_coords, "#FFFACD", "")))
                                         
                                         # 批量绘制所有图形
                                         for item_type, args in items:
