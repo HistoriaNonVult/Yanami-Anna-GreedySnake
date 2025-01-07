@@ -4938,24 +4938,30 @@ def start_main_game():
         if game_paused:
             return
             
-        # 获取蛇头位置
-        head_x, head_y = snake[0]
-        head_center_x = head_x + 10
-        head_center_y = head_y + 10
+        head_x, head_y = snake[-1]  # 修正:使用snake[-1]获取蛇头
+        # 每个蛇身块是20x20,所以中心点要加10
+        head_center_x = head_x + 10  # 20/2 = 10
+        head_center_y = head_y + 10  # 20/2 = 10
+        
+        # 计算鼠标点击位置相对于蛇头中心点的位置
+        dx = event.x - head_center_x
+        dy = event.y - head_center_y
         
         # 根据当前方向判断蛇头两侧
         if snake_direction in ["Left", "Right"]:
             # 当前水平移动时,只考虑上下
-            new_direction = "Up" if event.y < head_center_y else "Down"
+            # 使用相对于蛇头中心的位置判断
+            new_direction = "Up" if dy < 0 else "Down"
         else:
             # 当前垂直移动时,只考虑左右
-            new_direction = "Left" if event.x < head_center_x else "Right"
+            # 使用相对于蛇头中心的位置判断
+            new_direction = "Left" if dx < 0 else "Right"
         
         # 防止反向移动
         opposite_directions = {
             "Left": "Right",
-            "Right": "Left",
-            "Up": "Down", 
+            "Right": "Left", 
+            "Up": "Down",
             "Down": "Up"
         }
         
