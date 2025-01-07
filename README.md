@@ -1,4 +1,4 @@
-# Anna Yanami-Themed Snake Game<span style="font-size: 20px;"><br>**By wzy**</span>
+# Anna Yanami-Themed Snake Game<span style="font-size: 18px;"><br>**By wzy**</span>
 
 ## 🌟 Latest Version: [GreedySnake 3.3.0](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/tree/main/dist/GreedySnake3.3.0.exe)  
 
