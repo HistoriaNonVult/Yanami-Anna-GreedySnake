@@ -3083,7 +3083,7 @@ def start_main_game():
             # 使用列表缓存所有绘图命令,避免频繁调用canvas方法
             # 预分配固定大小的列表以减少内存分配
             draw_buffer = []
-            draw_buffer_size = PARTICLE_COUNT * 3 + 20  +1 # 估计所需的最大缓冲区大小
+            draw_buffer_size = PARTICLE_COUNT * 3 + 20  + 1 # 估计所需的最大缓冲区大小
             draw_buffer = [None] * draw_buffer_size
             buffer_index = 0
             
