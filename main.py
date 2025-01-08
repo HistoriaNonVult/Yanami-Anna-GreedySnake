@@ -2020,17 +2020,19 @@ class StartPage:
                 # 基础偏转因子
                 base_deviation = random.uniform(-0.15, 0.15)  # ±15% 的基础偏移
                 
-                # 动态偏转
-                dynamic_deviation = math.sin(angle * 3) * 0.08  # 添加周期性变化
+                # 动态偏转 - 使用多重正弦叠加产生更复杂的光效
+                dynamic_deviation = (math.sin(angle * 3) * 0.08 + 
+                                  math.sin(angle * 5) * 0.05 +
+                                  math.sin(angle * 7) * 0.03)
                 
                 # 随机扰动
-                noise = random.gauss(0, 0.06)  # 使用高斯分布获得更自然的随机性
+                noise = random.gauss(0, 0.06)
                 
                 # 合并所有偏转效果
                 total_deviation = base_deviation + dynamic_deviation + noise
                 
                 # 确保总偏转在合理范围内
-                total_deviation = max(-0.3, min(0.3, total_deviation))  # 限制在±30%范围内
+                total_deviation = max(-0.3, min(0.3, total_deviation))
                 
                 # 计算最终的角度索引
                 adjusted_angle = angle + (2 * math.pi * total_deviation)
@@ -2039,14 +2041,24 @@ class StartPage:
                 # 确保索引在有效范围内
                 color_index = color_index % len(colors)
                 
-                return colors[color_index]
+                # 随机添加光晕效果
+                if random.random() < 0.2:  # 20%概率产生光晕
+                    return "#FFFFFF"  # 纯白色光晕
+                    
+                base_color = colors[color_index]
+                # 15%概率增加彩虹光晕
+                if random.random() < 0.15:
+                    rainbow_colors = ["#FFD700", "#FF69B4", "#00FFFF", "#FF1493"]
+                    return random.choice(rainbow_colors)
+                    
+                return base_color
                 
             # 在粒子创建时添加特殊效果
-            for i in range(60):  # 增加粒子数量
+            for i in range(60):  # 保持原有粒子数量
                 angle = random.uniform(0, 2 * math.pi)
                 color = get_color_with_variation(angle)
                 
-                # 不同半径的粒子使用不同速度
+                # 保持原有速度范围
                 base_speed = random.uniform(2, 5)
                 if i < 20:  # 内圈
                     speed = base_speed * 0.8
@@ -2067,7 +2079,9 @@ class StartPage:
                     'alpha': 1.0,
                     'size': size,
                     'trail': [],
-                    'sparkle': random.random() < 0.5  # 50%的粒子会闪烁
+                    'sparkle': random.random() < 0.6,  # 60%的粒子会闪烁
+                    'glow': random.random() < 0.4,     # 40%的粒子会发光
+                    'rainbow_trail': random.random() < 0.3  # 30%的粒子会有彩虹轨迹
                 }
                 particles.append(particle)
             
@@ -2460,12 +2474,16 @@ def start_main_game():
                 # 创建淡入效果
                 def fade_in(alpha=0.0):
                     try:
-                        if alpha < 0.98:
-                            next_alpha = min(alpha + 0.062, 0.98)
+                        if alpha < 1.0:
+                            # 使用正弦函数实现更自然的淡入效果
+                            # sin(x)在[0,π/2]区间从0渐变到0.98
+                            progress = alpha / 1.0  # 归一化进度到[0,1]
+                            next_alpha = 0.98 * math.sin(progress * math.pi/2)
                             window.attributes('-alpha', next_alpha)
-                            window.after(20, lambda: fade_in(next_alpha))
+                            window.after(20, lambda: fade_in(alpha + 0.05))
                     except Exception as e:
                         print(f"淡入效果出错: {e}")
+                        window.attributes('-alpha', 0.98)
                 
                 # 启动淡入效果
                 window.after(100, fade_in)
@@ -2497,10 +2515,8 @@ def start_main_game():
             screen_width = 1024
             screen_height = 768
         try:
-            # 使用亚克力效果（推荐）
             pywinstyles.apply_style(window, "immersive")
             window.overrideredirect(True)     # 移除标准窗口边框
-
             # 或者使用透明效果
             # pywinstyles.apply_style(self.window, "transparent")
         except Exception as e:
@@ -3991,7 +4007,7 @@ def start_main_game():
             food_type = 'golden'
         elif rand <= 0.95:  # 调整special食物概率为0.10
             food_type = 'special'
-        else:  # 最后0.02的概率是彩色糖果
+        else:  # 最后0.05的概率是彩色糖果
             food_type = 'rainbow'
         
         food = Food(new_position, food_type)
@@ -4023,7 +4039,7 @@ def start_main_game():
             
             return f'#{r:02x}{g:02x}{b:02x}'
         
-        # 获取当前颜
+        # 获取当前颜色
         current_color = adjust_color(base_color, glow)
         
         # 据食物类型绘制不同形状
