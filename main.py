@@ -2715,12 +2715,12 @@ def start_main_game():
         colors = [
             # 梦幻极光
             [
-                "#FF5F5F",  # 珊瑚红 - 调深提高对比度
-                "#3ECDC4",  # 青绿色 - 调深增加层次感
-                "#45B7E1",  # 天蓝色 - 调亮增加活力
-                "#6CCEB4",  # 薄荷绿 - 继续调深提升质感
-                "#FFD099",  # 金黄色 - 调暖提升温度
-                "#FF4F4F"   # 浅红色 - 调深增加饱和度
+                "#FF5F5F",  # 珊瑚红 - 与金色黄昏的珊瑚色呼应
+                "#3ECDC4",  # 青绿色 - 与深海幻境的海蓝绿相近
+                "#45B7E1",  # 天蓝色 - 与深海幻境的皇家蓝相近
+                "#DDA0DD",  # 梅红色 - 与紫罗兰梦呼应
+                "#FFB7C5",  # 樱花粉 - 与樱花飞舞呼应
+                "#FF4F4F"   # 浅红色 - 与樱花飞舞的深粉红相近
             ],
             # 深海幻境
             [
@@ -2757,8 +2757,26 @@ def start_main_game():
                 "#FF7F50",  # 珊瑚色
                 "#FF6347",  # 番茄色
                 "#FF4500"   # 橙红色
+            ],
+            # 森林晨露
+            [
+                "#90EE90",  # 淡绿色
+                "#98FB98",  # 嫩绿色
+                "#3CB371",  # 中海绿色
+                "#2E8B57",  # 海绿色
+                "#228B22",  # 森林绿
+                "#006400"   # 深绿色
+            ],
+            # 极光之夜
+            [
+                "#191970",  # 午夜蓝
+                "#483D8B",  # 暗板岩蓝
+                "#6A5ACD",  # 板岩蓝
+                "#7B68EE",  # 中板岩蓝
+                "#9370DB",  # 中紫色
+                "#8A2BE2"   # 紫罗兰色
             ]
-        ][random.randint(0, 4)]  # 随机选择一种配色方案
+        ][random.randint(0, 6)]  # 随机选择一种配色方案
         
         # 预先计算所有颜色的RGB值
         rgb_colors = []
@@ -3895,14 +3913,44 @@ def start_main_game():
         colors = color_schemes[color_chose][INTP]  # 随机选择一种颜色方案
         
         # 先制蛇身
-        for i, segment in enumerate(snake[:-1]):  # 除了蛇头外的体
-            color = colors[i % len(colors)]  # 循环使用颜色
+        # 假设蛇身部分是由列表坐标组成，colors 是颜色列表
+        block_size = 20  # 每个蛇身块的大小
+        shadow_offset = 5  # 阴影偏移量
+
+        def draw_segment(canvas, segment, color, block_size, shadow_offset):
+            """
+            绘制蛇身方块及阴影
+            """
+            # 绘制主体方块
             canvas.create_rectangle(
                 segment[0], segment[1], 
-                segment[0] + 20, segment[1] + 20, 
+                segment[0] + block_size, segment[1] + block_size, 
                 fill=color,
                 outline=""  # 移除边框使外观更平滑
             )
+
+            # 创建内侧阴影，使用 stipple 实现半透明效果
+            canvas.create_rectangle(
+                segment[0] + shadow_offset, segment[1] + shadow_offset,
+                segment[0] + block_size - shadow_offset, segment[1] + block_size - shadow_offset,
+                fill=color,
+                stipple='gray25',  # 使用 stipple 属性来实现类似阴影的效果
+                outline=""
+            )
+
+
+        def draw_snake(canvas, snake, colors, block_size=20, shadow_offset=5):
+            """
+            绘制蛇的所有节段，除了蛇头
+            """
+            for i, segment in enumerate(snake[:-1]):  # 遍历蛇的每个体节，排除蛇头
+                color = colors[i % len(colors)]  # 循环使用颜色
+                draw_segment(canvas, segment, color, block_size, shadow_offset)
+
+        # 假设 snake 和 colors 已经定义
+        draw_snake(canvas, snake, colors)
+
+
         
         # 单独处理蛇头
         head = snake[-1]
