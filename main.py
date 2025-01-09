@@ -1613,7 +1613,7 @@ class StartPage:
         🎮 Instructions: Shift+H
         
         🎯 Controls:
-        • Arrow Keys or WASD to move snake
+        • Arrow or WASD or Mouse to move snake
         • P/SPACE to pause/continue
         • R to restart
         
