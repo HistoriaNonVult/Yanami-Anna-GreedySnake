@@ -1,13 +1,35 @@
 name: Build and Release
 
+env:
+  APP_NAME: GreedySnake
+  PYTHON_VERSION: '3.9'
+  BUILD_DIR: dist
+  ASSET_DIR: assets
+
 on:
   push:
     tags:
-      - 'v*' # 当推送v开头的tag时触发
+      - 'v*'
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+        include:
+          - os: windows-latest
+            output_name: GreedySnake-windows
+            asset_path: dist/GreedySnake-windows.zip
+          - os: macos-latest
+            output_name: GreedySnake-macos
+            asset_path: dist/GreedySnake-macos.zip
+    
+    runs-on: ${{ matrix.os }}
     
     steps:
     - uses: actions/checkout@v2
@@ -15,7 +37,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: '3.9'
+        python-version: ${{ env.PYTHON_VERSION }}
     
     - name: Install dependencies
       run: |
@@ -25,39 +47,86 @@ jobs:
     
     - name: Build with PyInstaller
       run: |
-        pyinstaller --noconfirm --onedir --windowed --icon=assets/images/icon.ico --add-data "assets;assets/" main.py
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          pyinstaller --noconfirm `
+            --onedir `
+            --windowed `
+            --name "${{ matrix.output_name }}" `
+            --icon "${{ env.ASSET_DIR }}/images/icon.ico" `
+            --add-data "${{ env.ASSET_DIR }};${{ env.ASSET_DIR }}" `
+            --hidden-import "pygame" `
+            --hidden-import "numpy" `
+            --hidden-import "pygame.mixer" `
+            --hidden-import "pygame.display" `
+            --collect-all "pygame" `
+            --clean `
+            main.py
+        else
+          pyinstaller --noconfirm \
+            --onedir \
+            --windowed \
+            --name "${{ matrix.output_name }}" \
+            --icon "${{ env.ASSET_DIR }}/images/icon.icns" \
+            --add-data "${{ env.ASSET_DIR }}:${{ env.ASSET_DIR }}" \
+            --hidden-import "pygame" \
+            --hidden-import "numpy" \
+            --hidden-import "pygame.mixer" \
+            --hidden-import "pygame.display" \
+            --collect-all "pygame" \
+            --clean \
+            main.py
+        fi
     
     - name: Create ZIP archive
       run: |
         cd dist
-        7z a -tzip ../GreedySnake-${{ github.ref_name }}-windows.zip GreedySnake/*
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          7z a -tzip "${{ matrix.output_name }}.zip" "${{ matrix.output_name }}"
+        else
+          zip -r "${{ matrix.output_name }}.zip" "${{ matrix.output_name }}"
+        fi
     
     - name: Create Release
-      id: create_release
+      if: startsWith(github.ref, 'refs/tags/v')
       uses: softprops/action-gh-release@v1
       with:
-        files: |
-          GreedySnake-${{ github.ref_name }}-windows.zip
+        files: ${{ matrix.asset_path }}
         name: Release ${{ github.ref_name }}
-        draft: false
-        prerelease: false
+        draft: ${{ github.event_name == 'pull_request' }}
+        prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') }}
         body: |
-          ## 更新内容
-          
-          ### 新功能
-          - 在这里添加新功能说明
-          
-          ### 修复
-          - 在这里添加修复说明
-          
-          ### 下载说明
-          - Windows用户请下载 GreedySnake-${{ github.ref_name }}-windows.zip
-          
-          ### 安装说明
-          1. 下载并解压zip文件
-          2. 运行GreedySnake.exe
+          ## 贪吃蛇游戏 ${{ github.ref_name }} 版本发布
           
           ### 系统要求
-          - Windows 7/8/10/11
+          - Windows 7/8/10/11 或 macOS 10.15+
+          - 显示器分辨率 1280x720 或更高
+          
+          ### 下载说明
+          - Windows用户请下载 GreedySnake-windows.zip
+          - Mac用户请下载 GreedySnake-macos.zip
+          
+          ### 安装说明
+          Windows:
+          1. 解压 GreedySnake-windows.zip
+          2. 进入解压后的文件夹
+          3. 运行 GreedySnake.exe
+          
+          Mac:
+          1. 解压 GreedySnake-macos.zip
+          2. 进入解压后的文件夹
+          3. 在终端中执行: chmod +x GreedySnake
+          4. 双击运行 GreedySnake
+          
+          ### 游戏说明
+          - 方向键控制蛇的移动
+          - ESC 暂停游戏
+          - 空格键继续游戏
+          - P 键截图保存
+          
+          ### 版本特性
+          ${{ github.event.head_commit.message }}
+          
+          ### 已知问题
+          如遇到问题，请在 Issues 中反馈。
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
