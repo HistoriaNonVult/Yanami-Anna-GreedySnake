@@ -43,7 +43,7 @@ jobs:
           --onefile `
           --windowed `
           --name "${{ env.APP_NAME }}" `
-          --icon "${{ env.ASSET_DIR }}/images/icon.ico" `
+          --icon "${{ env.ASSET_DIR }}/images/snake_icon.ico" `
           --add-data "${{ env.ASSET_DIR }};${{ env.ASSET_DIR }}" `
           --hidden-import "pygame" `
           --hidden-import "pygame.mixer" `
