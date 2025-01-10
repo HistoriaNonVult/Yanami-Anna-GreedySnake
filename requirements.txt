@@ -1,13 +1,4 @@
 pygame
 Pillow
-tkinter
-PIL
-random
-math
-time
-sys
-pathlib
 customtkinter
-collections
-ctypes
 pywinstyles
