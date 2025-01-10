@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest # 使用Windows环境
+    runs-on: windows-latest
     
     steps:
     - uses: actions/checkout@v2
@@ -45,10 +45,10 @@ jobs:
           ## 更新内容
           
           ### 新功能
-          - 自动发布功能
+          - 在这里添加新功能说明
           
           ### 修复
-          - 修复已知问题
+          - 在这里添加修复说明
           
           ### 下载说明
           - Windows用户请下载 GreedySnake-${{ github.ref_name }}-windows.zip
