@@ -1,4 +1,4 @@
-# Anna Yanami-Themed Snake Game
+# Anna Yanami-Themed Musical Snake Game
 
 ## **🌟 Latest Version: [GreedySnake 3.3.0](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/tree/main/dist/GreedySnake3.3.0.exe)**  
 
