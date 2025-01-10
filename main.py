@@ -3122,9 +3122,43 @@ def start_main_game():
             new_particle_data = [None] * (len(particles) * 8)  # 8个属性
             particle_index = 0
             
-            # 批量更新粒子并生成轨迹
-            for x, y, cos_angle, sin_angle, speed, size, color, phase in particles:
-                # 更新粒子位置
+            # 每次处理4个粒子,循环展开优化
+            particle_count = len(particles)
+            i = 0
+            while i < particle_count - 3:
+                # 同时处理4个粒子
+                for j in range(4):
+                    x, y, cos_angle, sin_angle, speed, size, color, phase = particles[i+j]
+                    wave = math.sin(elapsed_3 + phase) * 0.2
+                    move_factor = fade_factor * (1 + wave)
+                    dx = cos_angle * speed * move_factor
+                    dy = sin_angle * speed * move_factor
+                    new_x = x + dx
+                    new_y = y + dy
+                    
+                    # 直接更新数组
+                    idx = (particle_index + j) * 8
+                    new_particle_data[idx:idx+8] = [new_x, new_y, cos_angle, sin_angle, speed, size, color, phase]
+                    
+                    # 生成轨迹命令
+                    trail_size = size * fade_factor
+                    for t, factor in enumerate(trail_factors):
+                        if buffer_index < draw_buffer_size:
+                            draw_buffer[buffer_index] = ('line', (
+                                new_x, new_y,
+                                new_x - cos_angle * trail_length * factor,
+                                new_y - sin_angle * trail_length * factor,
+                                color,
+                                trail_size * (1 - t * 0.3)
+                            ))
+                            buffer_index += 1
+                
+                particle_index += 4
+                i += 4
+            
+            # 处理剩余粒子
+            while i < particle_count:
+                x, y, cos_angle, sin_angle, speed, size, color, phase = particles[i]
                 wave = math.sin(elapsed_3 + phase) * 0.2
                 move_factor = fade_factor * (1 + wave)
                 dx = cos_angle * speed * move_factor
@@ -3132,12 +3166,10 @@ def start_main_game():
                 new_x = x + dx
                 new_y = y + dy
                 
-                # 直接更新数组
                 idx = particle_index * 8
                 new_particle_data[idx:idx+8] = [new_x, new_y, cos_angle, sin_angle, speed, size, color, phase]
                 particle_index += 1
                 
-                # 生成轨迹命令
                 trail_size = size * fade_factor
                 for t, factor in enumerate(trail_factors):
                     if buffer_index < draw_buffer_size:
@@ -3149,6 +3181,7 @@ def start_main_game():
                             trail_size * (1 - t * 0.3)
                         ))
                         buffer_index += 1
+                i += 1
             
             # 更新粒子数据
             particles[:] = zip(*[iter(new_particle_data)]*8)
@@ -3165,14 +3198,35 @@ def start_main_game():
                 
                 # 批量生成文本效果
                 for offset, font, color in text_params:
-                    for dx, dy in text_offsets:
-                        if buffer_index < draw_buffer_size:
-                            draw_buffer[buffer_index] = ('text', (
-                                center_x + dx * offset,
-                                center_y + dy * offset,
-                                text_str, font, color
-                            ))
-                            buffer_index += 1
+                    # 展开4个方向的偏移循环
+                    if buffer_index < draw_buffer_size:
+                        draw_buffer[buffer_index] = ('text', (
+                            center_x - offset,
+                            center_y,
+                            text_str, font, color
+                        ))
+                        buffer_index += 1
+                    if buffer_index < draw_buffer_size:
+                        draw_buffer[buffer_index] = ('text', (
+                            center_x + offset,
+                            center_y,
+                            text_str, font, color
+                        ))
+                        buffer_index += 1
+                    if buffer_index < draw_buffer_size:
+                        draw_buffer[buffer_index] = ('text', (
+                            center_x,
+                            center_y - offset,
+                            text_str, font, color
+                        ))
+                        buffer_index += 1
+                    if buffer_index < draw_buffer_size:
+                        draw_buffer[buffer_index] = ('text', (
+                            center_x,
+                            center_y + offset,
+                            text_str, font, color
+                        ))
+                        buffer_index += 1
                 
                 # 中心文本
                 if buffer_index < draw_buffer_size:
@@ -3183,13 +3237,33 @@ def start_main_game():
                     ))
                     buffer_index += 1
                 
-                # 批量生成装饰点
+                # 批量生成装饰点,每次处理4个点
                 dot_radius = 2 * scale
                 dist = base_size * 1.5
-                for cos_angle, sin_angle in dot_positions:
-                    if buffer_index < draw_buffer_size:
+                dot_count = len(dot_positions)
+                i = 0
+                while i < dot_count - 3:
+                    for j in range(4):
+                        cos_angle, sin_angle = dot_positions[i+j]
                         x = center_x + cos_angle * dist
                         y = center_y + sin_angle * dist
+                        if buffer_index < draw_buffer_size:
+                            draw_buffer[buffer_index] = ('oval', (
+                                x - dot_radius,
+                                y - dot_radius,
+                                x + dot_radius,
+                                y + dot_radius,
+                                accent_colors[1]
+                            ))
+                            buffer_index += 1
+                    i += 4
+                
+                # 处理剩余的点
+                while i < dot_count:
+                    cos_angle, sin_angle = dot_positions[i]
+                    x = center_x + cos_angle * dist
+                    y = center_y + sin_angle * dist
+                    if buffer_index < draw_buffer_size:
                         draw_buffer[buffer_index] = ('oval', (
                             x - dot_radius,
                             y - dot_radius,
@@ -3198,10 +3272,27 @@ def start_main_game():
                             accent_colors[1]
                         ))
                         buffer_index += 1
+                    i += 1
             
             # 清除旧内容并批量执行绘图命令
             canvas.delete("milestone")
-            for i in range(buffer_index):
+            i = 0
+            while i < buffer_index - 3:
+                for j in range(4):
+                    cmd_type, args = draw_buffer[i+j]
+                    if cmd_type == 'line':
+                        canvas.create_line(*args[:4], fill=args[4], width=args[5],
+                                         capstyle=tk.ROUND, tags="milestone")
+                    elif cmd_type == 'text':
+                        canvas.create_text(*args[:2], text=args[2], font=args[3],
+                                         fill=args[4], tags="milestone")
+                    else:  # oval
+                        canvas.create_oval(*args[:4], fill=args[4],
+                                         outline="", tags="milestone")
+                i += 4
+            
+            # 处理剩余的绘图命令
+            while i < buffer_index:
                 cmd_type, args = draw_buffer[i]
                 if cmd_type == 'line':
                     canvas.create_line(*args[:4], fill=args[4], width=args[5],
@@ -3212,6 +3303,7 @@ def start_main_game():
                 else:  # oval
                     canvas.create_oval(*args[:4], fill=args[4],
                                      outline="", tags="milestone")
+                i += 1
             
             canvas.after(16, animate_milestone)
         
@@ -3392,6 +3484,117 @@ def start_main_game():
             trail_buffer.append([0] * 4)
         
         i = 0
+        # 每次处理4个粒子
+        while i < particle_count - 3:
+            for j in range(4):
+                particle = particles[i+j]
+                
+                # 快速检查alpha值
+                if particle.alpha <= 0:
+                    if particle.id:
+                        delete(particle.id)
+                        if particle.trail:
+                            delete(*particle.trail)
+                    continue
+                    
+                # 物理属性批量更新
+                drag = particle.drag
+                particle.speed_y = (particle.speed_y + particle.gravity) * drag
+                particle.speed_x *= drag
+                
+                # 位置更新
+                old_x = particle.x
+                old_y = particle.y
+                particle.x += particle.speed_x
+                particle.y += particle.speed_y
+                
+                # Alpha值更新
+                base_alpha = particle.base_alpha - 0.02
+                particle.base_alpha = base_alpha
+                particle.alpha = max(0, min(1, base_alpha * (math.sin(current_time + particle.flicker_offset) * 0.3 + 0.7)))
+                
+                # 清除旧图形
+                if particle.id:
+                    delete(particle.id)
+                    if particle.trail:
+                        delete(*particle.trail)
+                        particle.trail = []
+                
+                # 优化尾迹绘制
+                if base_alpha > 0.3:
+                    trail_alpha = particle.alpha
+                    dx = (particle.x - old_x) / particle.trail_length
+                    dy = (particle.y - old_y) / particle.trail_length
+                    trail_ids = []
+                    base_size = particle.size * particle.alpha
+                    
+                    # 每次处理4个尾迹段
+                    k = 0
+                    while k < particle.trail_length - 3:
+                        for m in range(4):
+                            trail_x = old_x + dx * (k+m)
+                            trail_y = old_y + dy * (k+m)
+                            trail_size = base_size * (0.5 + (k+m) / particle.trail_length)
+                            half_size = trail_size * 0.5
+                            
+                            coords = trail_buffer[k+m]
+                            coords[0] = trail_x - half_size
+                            coords[1] = trail_y - half_size
+                            coords[2] = trail_x + half_size
+                            coords[3] = trail_y + half_size
+                            
+                            trail_ids.append(create_oval(
+                                *coords,
+                                fill=particle.color,
+                                stipple='gray50' if trail_alpha < 0.5 else '',
+                                width=0
+                            ))
+                            trail_alpha *= 0.6
+                        k += 4
+                        
+                    # 处理剩余尾迹段
+                    while k < particle.trail_length:
+                        trail_x = old_x + dx * k
+                        trail_y = old_y + dy * k
+                        trail_size = base_size * (0.5 + k / particle.trail_length)
+                        half_size = trail_size * 0.5
+                        
+                        coords = trail_buffer[k]
+                        coords[0] = trail_x - half_size
+                        coords[1] = trail_y - half_size
+                        coords[2] = trail_x + half_size
+                        coords[3] = trail_y + half_size
+                        
+                        trail_ids.append(create_oval(
+                            *coords,
+                            fill=particle.color,
+                            stipple='gray50' if trail_alpha < 0.5 else '',
+                            width=0
+                        ))
+                        trail_alpha *= 0.6
+                        k += 1
+                    
+                    particle.trail = trail_ids
+                
+                # 主粒子绘制
+                current_size = particle.size * particle.alpha
+                half_size = current_size * 0.5
+                particle_coords[0] = particle.x - half_size
+                particle_coords[1] = particle.y - half_size
+                particle_coords[2] = particle.x + half_size
+                particle_coords[3] = particle.y + half_size
+                
+                particle.id = create_oval(
+                    *particle_coords,
+                    fill=particle.color,
+                    stipple='gray50' if particle.alpha < 0.5 else '',
+                    width=0
+                )
+                
+                active_particles.append(particle)
+            i += 4
+            
+        # 处理剩余粒子
         while i < particle_count:
             particle = particles[i]
             
@@ -3435,7 +3638,6 @@ def start_main_game():
                 trail_ids = []
                 base_size = particle.size * particle.alpha
                 
-                # 使用预分配的缓冲区绘制尾迹
                 for j in range(particle.trail_length):
                     trail_x = old_x + dx * j
                     trail_y = old_y + dy * j
@@ -3917,37 +4119,46 @@ def start_main_game():
         block_size = 20  # 每个蛇身块的大小
         shadow_offset = 5  # 阴影偏移量
 
-        def draw_segment(canvas, segment, color, block_size, shadow_offset):
+        def draw_segment(canvas, segment, color, block_size=20, shadow_offset=5):
             """
-            绘制蛇身方块及阴影
+            绘制蛇身方块,优化版本
             """
-            # 绘制主体方块
+            # 直接使用列表索引避免解包
             canvas.create_rectangle(
-                segment[0], segment[1], 
-                segment[0] + block_size, segment[1] + block_size, 
+                segment[0], segment[1],
+                segment[0] + block_size, segment[1] + block_size,
                 fill=color,
-                outline=""  # 移除边框使外观更平滑
-            )
-
-            # 创建内侧阴影，使用 stipple 实现半透明效果
-            canvas.create_rectangle(
-                segment[0] + shadow_offset, segment[1] + shadow_offset,
-                segment[0] + block_size - shadow_offset, segment[1] + block_size - shadow_offset,
-                fill=color,
-                stipple='gray25',  # 使用 stipple 属性来实现类似阴影的效果
                 outline=""
             )
 
-
         def draw_snake(canvas, snake, colors, block_size=20, shadow_offset=5):
             """
-            绘制蛇的所有节段，除了蛇头
+            批量绘制整条蛇,优化版本
             """
-            for i, segment in enumerate(snake[:-1]):  # 遍历蛇的每个体节，排除蛇头
-                color = colors[i % len(colors)]  # 循环使用颜色
-                draw_segment(canvas, segment, color, block_size, shadow_offset)
+            # 预计算颜色列表长度
+            color_len = len(colors)
+            # 预分配绘图命令缓冲区
+            draw_commands = []
+            # 除头部外的身体段
+            segments = snake[:-1]
+            
+            # 批量生成绘图命令
+            for i, segment in enumerate(segments):
+                draw_commands.append((
+                    segment[0], segment[1],
+                    segment[0] + block_size, segment[1] + block_size,
+                    colors[i % color_len]
+                ))
+            
+            # 批量执行绘图命令
+            for cmd in draw_commands:
+                canvas.create_rectangle(
+                    cmd[0], cmd[1], cmd[2], cmd[3],
+                    fill=cmd[4],
+                    outline=""
+                )
 
-        # 假设 snake 和 colors 已经定义
+        # 使用局部变量调用绘制函数
         draw_snake(canvas, snake, colors)
 
 
