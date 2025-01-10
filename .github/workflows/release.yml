@@ -37,24 +37,18 @@ jobs:
         pip install pywinstyles
         pip install pyinstaller
     
-    - name: Install UPX
-      run: |
-        curl -L -o upx.zip https://github.com/upx/upx/releases/download/v4.1.0/upx-4.1.0-win64.zip
-        7z e upx.zip */upx.exe -r
-    
     - name: Build with PyInstaller
       run: |
         pyinstaller --noconfirm `
           --onefile `
           --windowed `
-          --name "GreedySnake" `
+          --name "${{ env.APP_NAME }}" `
           --icon "${{ env.ASSET_DIR }}/images/icon.ico" `
           --add-data "${{ env.ASSET_DIR }};${{ env.ASSET_DIR }}" `
           --hidden-import "pygame" `
           --hidden-import "pygame.mixer" `
           --hidden-import "pygame.display" `
           --hidden-import "customtkinter" `
-          --upx-dir "." `
           --clean `
           main.py
     
