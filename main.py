@@ -4104,16 +4104,16 @@ def start_main_game():
         while new_position in snake:
             new_position = (random.randint(0, 19) * 20, random.randint(0, 19) * 20)
         
-        # 根据概率选择食物类型
-        rand = random.random()
-        if rand <= 0.62:
-            food_type = 'normal'
-        elif rand <= 0.85:
-            food_type = 'golden'
-        elif rand <= 0.95:  # 调整special食物概率为0.10
-            food_type = 'special'
-        else:  # 最后0.05的概率是彩色糖果
-            food_type = 'rainbow'
+        # 使用权重随机选择食物类型
+        food_types = ['normal', 'golden', 'special', 'rainbow']
+        weights = [0.62, 0.23, 0.10, 0.05]  # 概率权重
+        
+        # 使用random.choices进行加权随机选择
+        food_type = random.choices(
+            food_types,
+            weights=weights,
+            k=1
+        )[0]
         
         food = Food(new_position, food_type)
     
