@@ -6,11 +6,11 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[('assets', 'assets')],
-    hiddenimports=[],
+    hiddenimports=['pygame', 'pygame.mixer', 'pygame.display', 'customtkinter'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['numpy', 'scipy', 'pandas', 'tk', 'matplotlib', 'PyQt5', 'PyQt6', 'PySide2', 'PySide6'],
     noarchive=False,
     optimize=0,
 )
@@ -35,4 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['assets\\images\\snake_icon.ico'],
 )
