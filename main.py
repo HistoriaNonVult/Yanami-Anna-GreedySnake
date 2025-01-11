@@ -3965,46 +3965,37 @@ def start_main_game():
         block_size = 20  # 每个蛇身块的大小
         shadow_offset = 5  # 阴影偏移量
 
-        def draw_segment(canvas, segment, color, block_size=20, shadow_offset=5):
+        def draw_segment(canvas, segment, color):
             """
-            绘制蛇身方块,优化版本
+            绘制蛇身方块,终极优化版本
             """
-            # 直接使用列表索引避免解包
+            # 直接使用列表索引,避免任何变量赋值和计算
             canvas.create_rectangle(
                 segment[0], segment[1],
-                segment[0] + block_size, segment[1] + block_size,
+                segment[0] + 20, segment[1] + 20,
                 fill=color,
                 outline=""
             )
 
-        def draw_snake(canvas, snake, colors, block_size=20, shadow_offset=5):
+        def draw_snake(canvas, snake, colors):
             """
-            批量绘制整条蛇,优化版本
+            批量绘制整条蛇,终极优化版本
             """
-            # 预计算颜色列表长度
+            # 预计算颜色列表长度,避免重复计算
             color_len = len(colors)
-            # 预分配绘图命令缓冲区
-            draw_commands = []
-            # 除头部外的身体段
-            segments = snake[:-1]
             
-            # 批量生成绘图命令
-            for i, segment in enumerate(segments):
-                draw_commands.append((
-                    segment[0], segment[1],
-                    segment[0] + block_size, segment[1] + block_size,
-                    colors[i % color_len]
-                ))
+            # 使用列表推导式一次性生成所有绘图命令
+            commands = [(
+                segment[0], segment[1],
+                segment[0] + 20, segment[1] + 20,
+                colors[i % color_len]
+            ) for i, segment in enumerate(snake[:-1])]
             
-            # 批量执行绘图命令
-            for cmd in draw_commands:
-                canvas.create_rectangle(
-                    cmd[0], cmd[1], cmd[2], cmd[3],
-                    fill=cmd[4],
-                    outline=""
-                )
+            # 批量执行所有绘图命令
+            for x1, y1, x2, y2, color in commands:
+                canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
 
-        # 使用局部变量调用绘制函数
+        # 直接调用优化后的绘制函数
         draw_snake(canvas, snake, colors)
 
 
@@ -4915,6 +4906,7 @@ def start_main_game():
                 snake_speed = min(150, snake_speed + 10)
                 show_effect_message('slow_down')
             elif effect == 'rainbow':
+                snake_speed = min(150, snake_speed + 5)
                 nr = color_chose
                 color_chose = random.randint(0, 2)  # 随机切换颜色方案
                 print("COLORRRRRRRR")
