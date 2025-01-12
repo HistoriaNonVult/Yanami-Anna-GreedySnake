@@ -3166,7 +3166,7 @@ def start_main_game():
                     
                     # 生成轨迹
                     current_trail_size = trail_size
-                    for t, factor in enumerate(trail_factors):
+                    for factor in trail_factors:
                         if buffer_index < draw_buffer_size:
                             # 使用预计算的值计算轨迹点
                             trail_x = new_x - trail_cos * factor
@@ -3202,7 +3202,7 @@ def start_main_game():
                 trail_size_03 = trail_size * 0.3
                 
                 current_trail_size = trail_size
-                for t, factor in enumerate(trail_factors):
+                for factor in trail_factors:
                     if buffer_index < draw_buffer_size:
                         trail_x = new_x - trail_cos * factor
                         trail_y = new_y - trail_sin * factor
