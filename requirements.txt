@@ -2,3 +2,4 @@ pygame
 Pillow
 customtkinter
 pywinstyles
+array

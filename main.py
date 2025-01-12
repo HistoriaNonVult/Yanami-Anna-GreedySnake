@@ -11,7 +11,7 @@ import customtkinter as ctk
 from collections import deque
 import ctypes
 import pywinstyles  # 导入窗口样式库
-
+import array
 # 窗口样式对照表
 WINDOW_STYLES = {
     0: "dark",       # 深色主题
@@ -2839,14 +2839,14 @@ def start_main_game():
             for i, color in enumerate(colors):
                 if is_vertical:
                     y1 = i * height_per_segment
-                    y2 = (i + 1) * height_per_segment
+                    y2 = y1 + height_per_segment
                     rects.extend([
                         (-2, y1-2, 7, y2+2, color, "gray50"),
                         (0, y1, 5, y2, color, "")
                     ])
                 else:
                     x1 = i * width_per_segment
-                    x2 = (i + 1) * width_per_segment
+                    x2 = x1 + width_per_segment
                     rects.extend([
                         (x1-2, -2, x2+2, 8, color, "gray50"),
                         (x1, 0, x2, 6, color, "")
@@ -3075,23 +3075,29 @@ def start_main_game():
         color_indices = [min(int((i / PARTICLE_COUNT) * len(primary_colors)), len(primary_colors)-1) 
                         for i in range(PARTICLE_COUNT)]
         
-        # 优化粒子创建 - 使用数组存储而不是字典
-        particles = [(
-            center_x,  # x
-            center_y,  # y
-            cos_angles[i],  # cos_angle
-            sin_angles[i],  # sin_angle
-            random.uniform(3.0, 4.0),  # speed
-            random.uniform(1.5, 2.5),  # size
-            primary_colors[color_indices[i]],  # color
-            random.uniform(0, TWO_PI)  # phase
-        ) for i in range(PARTICLE_COUNT)]
+        # 初始化particles列表
+        particles = []
+        
+        # 创建粒子
+        for i in range(PARTICLE_COUNT):
+            particles.append((
+                center_x,  # x
+                center_y,  # y
+                cos_angles[i],  # cos_angle
+                sin_angles[i],  # sin_angle
+                random.uniform(3.0, 4.0),  # speed
+                random.uniform(1.5, 2.5),  # size
+                primary_colors[color_indices[i]],  # color
+                random.uniform(0, TWO_PI)  # phase
+            ))
         
         # 缓存常用值
         accent_colors = colors['accent']
         text_offsets = [(-1,0), (1,0), (0,-1), (0,1)]  # 标准化文本偏移
         
         def animate_milestone():
+            nonlocal particles
+            
             current_time = time.time()
             elapsed = current_time - start_time
             
@@ -3118,7 +3124,7 @@ def start_main_game():
             trail_factors = [0.7, 0.4, 0.1]
             
             # 使用数组存储粒子数据
-            new_particle_data = [None] * (len(particles) * 8)
+            new_particle_data = [None] * (len(particles) << 3)
             particle_index = 0
             
             # 批量处理粒子,每次4个
@@ -3139,28 +3145,38 @@ def start_main_game():
                     x, y, cos_angle, sin_angle, speed, size, color, phase = particles[i+j]
                     
                     # 优化波动和移动计算
+                    # 预计算移动相关的值
                     wave = math.sin(wave_base + phase) * 0.2
                     move_factor = move_base * (1 + wave)
-                    dx = cos_angle * speed * move_factor
-                    dy = sin_angle * speed * move_factor
-                    new_x = x + dx
-                    new_y = y + dy
+                    speed_factor = speed * move_factor
+                    move_x = cos_angle * speed_factor
+                    move_y = sin_angle * speed_factor
+                    new_x = x + move_x
+                    new_y = y + move_y
+                    
+                    # 预计算轨迹相关的值
+                    trail_size = size * fade_factor
+                    trail_cos = cos_angle * trail_length  
+                    trail_sin = sin_angle * trail_length
+                    trail_size_03 = trail_size * 0.3  # 预计算size递减因子
                     
                     # 更新粒子数据
-                    idx = (particle_index + j) * 8
+                    idx = (particle_index + j) << 3
                     new_particle_data[idx:idx+8] = [new_x, new_y, cos_angle, sin_angle, speed, size, color, phase]
                     
                     # 生成轨迹
-                    trail_size = size * fade_factor
+                    current_trail_size = trail_size
                     for t, factor in enumerate(trail_factors):
                         if buffer_index < draw_buffer_size:
-                            trail_x = new_x - cos_angle * trail_length * factor
-                            trail_y = new_y - sin_angle * trail_length * factor
+                            # 使用预计算的值计算轨迹点
+                            trail_x = new_x - trail_cos * factor
+                            trail_y = new_y - trail_sin * factor
                             draw_buffer[buffer_index] = ('line', (
                                 new_x, new_y, trail_x, trail_y,
-                                color, trail_size * (1 - t * 0.3)
+                                color, current_trail_size
                             ))
                             buffer_index += 1
+                            current_trail_size -= trail_size_03  # 使用减法代替每次乘法
                 
                 particle_index += 4
                 i += 4
@@ -3170,25 +3186,32 @@ def start_main_game():
                 x, y, cos_angle, sin_angle, speed, size, color, phase = particles[i]
                 wave = math.sin(wave_base + phase) * 0.2
                 move_factor = move_base * (1 + wave)
-                dx = cos_angle * speed * move_factor
-                dy = sin_angle * speed * move_factor
-                new_x = x + dx
-                new_y = y + dy
+                speed_factor = speed * move_factor
+                move_x = cos_angle * speed_factor
+                move_y = sin_angle * speed_factor
+                new_x = x + move_x
+                new_y = y + move_y
                 
-                idx = particle_index * 8
+                idx = particle_index << 3
                 new_particle_data[idx:idx+8] = [new_x, new_y, cos_angle, sin_angle, speed, size, color, phase]
                 particle_index += 1
                 
                 trail_size = size * fade_factor
+                trail_cos = cos_angle * trail_length
+                trail_sin = sin_angle * trail_length
+                trail_size_03 = trail_size * 0.3
+                
+                current_trail_size = trail_size
                 for t, factor in enumerate(trail_factors):
                     if buffer_index < draw_buffer_size:
-                        trail_x = new_x - cos_angle * trail_length * factor
-                        trail_y = new_y - sin_angle * trail_length * factor
+                        trail_x = new_x - trail_cos * factor
+                        trail_y = new_y - trail_sin * factor
                         draw_buffer[buffer_index] = ('line', (
                             new_x, new_y, trail_x, trail_y,
-                            color, trail_size * (1 - t * 0.3)
+                            color, current_trail_size
                         ))
                         buffer_index += 1
+                        current_trail_size -= trail_size_03
                 i += 1
             
             # 更新粒子数据
@@ -3226,7 +3249,7 @@ def start_main_game():
                     buffer_index += 1
                 
                 # 批量生成装饰点
-                dot_radius = 2 * scale
+                dot_radius = scale + scale
                 dist = base_size * 1.5
                 
                 # 一次性生成所有点的坐标
@@ -3421,29 +3444,39 @@ def start_main_game():
     
     # 更新粒子效果
     def update_particles():
-        # 缓存频繁使用的对象和方法
+        # 1. 缓存更多频繁使用的方法和属性
         canvas_ref = canvas
         create_oval = canvas_ref.create_oval
         delete = canvas_ref.delete
+        sin = math.sin
+        max_min = lambda x, min_val, max_val: max(min_val, min(max_val, x))
         
-        # 预计算常量值
+        # 2. 预计算常量值并使用局部变量
         current_time = time.time() * 10
-        particle_coords = [0] * 4
+        STIPPLE_GRAY50 = 'gray50'
+        EMPTY_STR = ''
+        TRAIL_BATCH_SIZE = 4
         
-        # 预分配固定大小的缓冲区
-        trail_buffer = [[0] * 4 for _ in range(50)]
+        # 3. 使用数组替代列表来存储坐标
+        coords_array = array.array('f', [0] * 4)
         
-        # 使用列表推导式过滤无效粒子
-        active_particles = []
+        # 4. 预分配固定大小的缓冲区并重用
+        TRAIL_BUFFER_SIZE = 50
+        trail_buffer = [[0] * 4 for _ in range(TRAIL_BUFFER_SIZE)]
+        
+        # 5. 批量处理前预先计算总数
         particle_count = len(particles)
+        active_particles = []
+        active_particles_append = active_particles.append  # 局部化方法调用
         
-        # 批量处理粒子
-        for i in range(0, particle_count, 4):
-            batch_size = min(4, particle_count - i)
-            for j in range(batch_size):
-                particle = particles[i+j]
+        # 6. 使用更高效的批处理逻辑
+        for i in range(0, particle_count, TRAIL_BATCH_SIZE):
+            batch_end = min(i + TRAIL_BATCH_SIZE, particle_count)
+            
+            for j in range(i, batch_end):
+                particle = particles[j]
                 
-                # 快速检查alpha值
+                # 7. 快速路径检查
                 if particle.alpha <= 0:
                     if particle.id:
                         delete(particle.id)
@@ -3451,80 +3484,83 @@ def start_main_game():
                             delete(*particle.trail)
                     continue
                 
-                # 物理属性更新
+                # 8. 物理更新优化 - 减少乘法运算
                 drag = particle.drag
-                particle.speed_y = (particle.speed_y + particle.gravity) * drag
+                particle.speed_y = particle.speed_y * drag + particle.gravity * drag
                 particle.speed_x *= drag
                 
-                # 位置更新
-                old_x = particle.x
-                old_y = particle.y
+                # 9. 位置更新 - 直接修改
+                old_x, old_y = particle.x, particle.y
                 particle.x += particle.speed_x
                 particle.y += particle.speed_y
                 
-                # Alpha值更新
+                # 10. Alpha值更新优化
                 base_alpha = particle.base_alpha - 0.02
                 particle.base_alpha = base_alpha
-                particle.alpha = max(0, min(1, base_alpha * (math.sin(current_time + particle.flicker_offset) * 0.3 + 0.7)))
+                flicker = sin(current_time + particle.flicker_offset) * 0.3 + 0.7
+                particle.alpha = max_min(base_alpha * flicker, 0, 1)
                 
-                # 清除旧图形
+                # 11. 清理旧图形 - 批量操作
                 if particle.id:
                     delete(particle.id)
                     if particle.trail:
                         delete(*particle.trail)
                         particle.trail = []
                 
-                # 尾迹绘制
+                # 12. 尾迹绘制优化
                 if base_alpha > 0.3:
                     trail_alpha = particle.alpha
                     dx = (particle.x - old_x) / particle.trail_length
                     dy = (particle.y - old_y) / particle.trail_length
                     trail_ids = []
+                    trail_ids_append = trail_ids.append
                     base_size = particle.size * particle.alpha
                     
-                    # 批量处理尾迹段
-                    for k in range(0, particle.trail_length, 4):
-                        batch = min(4, particle.trail_length - k)
+                    # 13. 尾迹批处理优化
+                    for k in range(0, particle.trail_length, TRAIL_BATCH_SIZE):
+                        batch = min(TRAIL_BATCH_SIZE, particle.trail_length - k)
+                        
                         for m in range(batch):
-                            trail_x = old_x + dx * (k+m)
-                            trail_y = old_y + dy * (k+m)
-                            trail_size = base_size * (0.5 + (k+m) / particle.trail_length)
+                            idx = k + m
+                            trail_x = old_x + dx * idx
+                            trail_y = old_y + dy * idx
+                            trail_size = base_size * (0.5 + idx / particle.trail_length)
                             half_size = trail_size * 0.5
                             
-                            coords = trail_buffer[k+m]
+                            coords = trail_buffer[idx]
                             coords[0] = trail_x - half_size
                             coords[1] = trail_y - half_size
                             coords[2] = trail_x + half_size
                             coords[3] = trail_y + half_size
                             
-                            trail_ids.append(create_oval(
+                            trail_ids_append(create_oval(
                                 *coords,
                                 fill=particle.color,
-                                stipple='gray50' if trail_alpha < 0.5 else '',
+                                stipple=STIPPLE_GRAY50 if trail_alpha < 0.5 else EMPTY_STR,
                                 width=0
                             ))
                             trail_alpha *= 0.6
                     
                     particle.trail = trail_ids
                 
-                # 主粒子绘制
+                # 14. 主粒子绘制优化
                 current_size = particle.size * particle.alpha
                 half_size = current_size * 0.5
-                particle_coords[0] = particle.x - half_size
-                particle_coords[1] = particle.y - half_size
-                particle_coords[2] = particle.x + half_size
-                particle_coords[3] = particle.y + half_size
+                coords_array[0] = particle.x - half_size
+                coords_array[1] = particle.y - half_size
+                coords_array[2] = particle.x + half_size
+                coords_array[3] = particle.y + half_size
                 
                 particle.id = create_oval(
-                    *particle_coords,
+                    *coords_array,
                     fill=particle.color,
-                    stipple='gray50' if particle.alpha < 0.5 else '',
+                    stipple=STIPPLE_GRAY50 if particle.alpha < 0.5 else EMPTY_STR,
                     width=0
                 )
                 
-                active_particles.append(particle)
+                active_particles_append(particle)
         
-        # 原地更新粒子列表
+        # 15. 原地更新粒子列表
         particles[:] = active_particles
     
     def toggle_pause():
