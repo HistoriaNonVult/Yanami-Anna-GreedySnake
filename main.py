@@ -4962,7 +4962,7 @@ def start_main_game():
         # 更新粒子效果
         update_particles()
         
-        # 使用单一计时器和帧计数实现平滑移动
+        #使用单一计时器和帧计数实现平滑移动
         if game_running:
             step = snake_speed // 20  # 从16份改为20份，追求极致平滑
             window.after(step, lambda: 
@@ -4984,6 +4984,7 @@ def start_main_game():
                                                                             window.after(step, lambda:
                                                                                 window.after(step, lambda:
                                                                                     window.after(step, move_snake)))))))))))))))))))
+
     
     def change_direction(new_direction):
         nonlocal snake_direction
