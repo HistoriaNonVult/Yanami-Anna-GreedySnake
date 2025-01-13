@@ -2440,7 +2440,7 @@ class StartPage:
 
 def start_main_game():
     
-    color_chose = random.randint(0, 2)
+    color_chose = random.randint(3, 5)
     
     # 创建音效管理器
     sound_manager = SoundManager()
@@ -3591,7 +3591,7 @@ def start_main_game():
                 window.after_cancel(int(after_id))
             except ValueError:
                 continue
-        color_chose = random.randint(0, 2)
+        color_chose = random.randint(0, 5)
         # 重置游戏状态
         snake = [(20, 20), (20, 40), (20, 60)]
         snake_direction = "Down"
@@ -3991,6 +3991,66 @@ def start_main_game():
                     "#00FFFF",  # 数据流束
                     "#00CCFF"   # 矩阵深邃
                 ]
+            ],
+            [   # 第一组：梦幻星空
+                [   # 星云幻彩
+                    "#FF99FF",  # 星云粉紫
+                    "#FF66FF",  # 星尘闪烁
+                    "#FF33FF",  # 星际光芒
+                    "#CC00FF"   # 深空魔力
+                ],
+                [   # 银河之流
+                    "#99FFFF",  # 银河起点
+                    "#66FFFF",  # 星河波动
+                    "#33FFFF",  # 星际之流
+                    "#00CCFF"   # 深空之渊
+                ],
+                [   # 恒星之光
+                    "#FFFF99",  # 恒星光辉
+                    "#FFFF66",  # 星光闪耀
+                    "#FFFF33",  # 光芒万丈
+                    "#FFCC00"   # 永恒之星
+                ]
+            ],
+            [   # 第二组：霓虹都市
+                [   # 霓虹之夜
+                    "#FF6699",  # 霓虹玫瑰
+                    "#FF3366",  # 城市脉动
+                    "#FF0033",  # 都市之心
+                    "#CC0033"   # 暗夜之魂
+                ],
+                [   # 电子光辉
+                    "#66FF99",  # 电子光芒
+                    "#33FF66",  # 数据流光
+                    "#00FF33",  # 矩阵能量
+                    "#00CC33"   # 科技深邃
+                ],
+                [   # 赛博之焰
+                    "#FF9966",  # 赛博烈焰
+                    "#FF6633",  # 数码燃烧
+                    "#FF3300",  # 信息之火
+                    "#CC3300"   # 核心之炎
+                ]
+            ],
+            [   # 第三组：量子领域
+                [   # 量子之舞
+                    "#9999FF",  # 量子起点
+                    "#6666FF",  # 虚拟律动
+                    "#3333FF",  # 数据洪流
+                    "#0000CC"   # 信息之海
+                ],
+                [   # 矩阵绿光
+                    "#99FF99",  # 矩阵光束
+                    "#66FF66",  # 程序之光
+                    "#33FF33",  # 代码闪耀
+                    "#00CC00"   # 系统之芯
+                ],
+                [   # 超维空间
+                    "#FF9999",  # 维度之门
+                    "#FF6666",  # 空间涟漪
+                    "#FF3333",  # 现实折射
+                    "#CC0000"   # 终极真理
+                ]
             ]
         ]
         
@@ -4091,13 +4151,13 @@ def start_main_game():
                     'color': '#FF0033',  # 更鲜艳的红色
                     'score': 1,
                     'effect': None,
-                    'probability': 0.65
+                    'probability': 0.61
                 },
                 'golden': {
                     'color': '#FFD700',  # 更明亮的金色
                     'score': 3,
                     'effect': 'speed_up',
-                    'probability': 0.23
+                    'probability': 0.235
                 },
                 'special': {
                     'color': '#9400D3',  # 更深邃的紫色
@@ -4109,7 +4169,7 @@ def start_main_game():
                     'color': '#FF1493',
                     'score': 10,
                     'effect': 'rainbow',
-                    'probability': 0.05
+                    'probability': 0.055
                 }
             }
             
@@ -4133,7 +4193,7 @@ def start_main_game():
         
         # 使用权重随机选择食物类型
         food_types = ['normal', 'golden', 'special', 'rainbow']
-        weights = [0.62, 0.23, 0.10, 0.05]  # 概率权重
+        weights = [0.61, 0.235, 0.10, 0.055]  # 概率权重
         
         # 使用random.choices进行加权随机选择
         food_type = random.choices(
@@ -4944,10 +5004,10 @@ def start_main_game():
             elif effect == 'rainbow':
                 snake_speed = min(150, snake_speed + 5)
                 nr = color_chose
-                color_chose = random.randint(0, 2)  # 随机切换颜色方案
-                print("COLORRRRRRRR")
+                color_chose = random.randint(0, 5)  # 随机切换颜色方案
+                #print("COLORRRRRRRR")
                 while nr == color_chose:
-                    color_chose = random.randint(0, 2)  # 随机切换颜色方案
+                    color_chose = random.randint(0, 5)  # 随机切换颜色方案
             generate_food()
         else:
             snake.pop(0)
