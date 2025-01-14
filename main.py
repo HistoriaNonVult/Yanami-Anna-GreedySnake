@@ -37,6 +37,8 @@ pygame.mixer.set_num_channels(32)  # 增加同时播放的声道数
 # 获取当前脚本所在目录
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
+Game_Mode = "Forbid"  # 默认为 Forbid 模式
+high_score = 0
 # 添加音效管理器类
 class SoundManager:
     def __init__(self):
@@ -146,7 +148,9 @@ def initialize_high_score_file():
     """初始化最高分文件"""
     data_dir = get_data_dir()
     high_score_path = os.path.join(data_dir, 'high_score.txt')
-    
+    high_score_path_2 = os.path.join(data_dir, 'high_score_2.txt')
+    if Game_Mode == "Pass":
+        high_score_path = high_score_path_2
     # 如果文件不存在，创建它并初始化为0
     if not os.path.exists(high_score_path):
         try:
@@ -160,7 +164,9 @@ def load_high_score():
     """加载最高分"""
     data_dir = get_data_dir()
     high_score_path = os.path.join(data_dir, 'high_score.txt')
-    
+    high_score_path_2 = os.path.join(data_dir, 'high_score_2.txt')
+    if Game_Mode == "Pass":
+        high_score_path = high_score_path_2
     try:
         # 如果文件不存在，先创建它
         if not os.path.exists(high_score_path):
@@ -177,7 +183,9 @@ def save_high_score(score):
     """保存最高分"""
     data_dir = get_data_dir()
     high_score_path = os.path.join(data_dir, 'high_score.txt')
-    
+    high_score_path_2 = os.path.join(data_dir, 'high_score_2.txt')
+    if Game_Mode == "Pass":
+        high_score_path = high_score_path_2
     try:
         with open(high_score_path, 'w') as file:
             file.write(str(score))
@@ -1323,12 +1331,35 @@ class StartPage:
         )
         self.start_button.pack(pady=10)
         
-        # 退出按钮
+        # ... existing code ...
+
+        # 创建一个新的框架用于底部按钮
+        button_row_frame = tk.Frame(button_frame, bg='#050505')
+        button_row_frame.pack(fill='x', pady=10)
+        self.mode = Game_Mode
+        # 左边的按钮 - 与Start Game左对齐
+        self.left_button = tk.Button(
+            button_row_frame,
+            text=self.mode,
+            command=self.toggle_mode,
+            width=12,
+            height=1,
+            bg="#FFA726" if self.mode == "Forbid" else "#9B59B6",  # 根据模式设置颜色,
+            fg="white",
+            font=("Verdana", 14, "bold"),
+            relief="flat",
+            borderwidth=0,
+            activebackground="#FF9800" if self.mode == "Forbid" else "#B39DDB",  # 根据模式设置悬停颜色  # 鼠标悬停时的颜色
+            cursor="hand2"
+        )
+        self.left_button.pack(side=tk.LEFT, padx=(0, 0))  # 移除所有padding
+
+        # 退出按钮 - 与Start Game右对齐
         self.quit_button = tk.Button(
-            button_frame,
+            button_row_frame,
             text="Quit",
             command=self.window.destroy,
-            width=24,
+            width=11,
             height=1,
             bg="#FF5722",
             fg="white",
@@ -1337,11 +1368,11 @@ class StartPage:
             borderwidth=0,
             cursor="hand2"
         )
-        self.quit_button.pack(pady=10)
+        self.quit_button.pack(side=tk.RIGHT, padx=(0, 0))  # 使用RIGHT对齐，移除所有padding
         self.window.bind("<Escape>", lambda event: self.window.destroy())
 
         # 为按钮添加悬停效果
-        for button in [self.music_button, self.start_button, self.quit_button]:
+        for button in [self.music_button, self.start_button, self.quit_button,self.left_button]:
             button.bind("<Enter>", lambda e, b=button: self.on_hover(e, b))
             button.bind("<Leave>", lambda e, b=button: self.on_leave(e, b))
         
@@ -1526,6 +1557,7 @@ class StartPage:
     
     def draw_instructions(self):
         # 加载最高分
+        global high_score
         high_score = load_high_score()
         
         # 创建渐变颜色（使用更鲜艳的配色）
@@ -1561,6 +1593,7 @@ class StartPage:
         
         # 绘制"BEST SCORE:"文本（注意这里添加了冒号）
         text = "BEST SCORE:"  # 添冒号
+        high_score = load_high_score()
         score_text = str(high_score)
         char_width = 14
         start_x = 200 - ((len(text) * char_width + 40) / 2)  # 调整整体位置，为分数留出空间
@@ -1574,7 +1607,8 @@ class StartPage:
                 text=char,
                 fill='#222222',
                 font=("Impact", 20, "bold"),
-                anchor="center"
+                anchor="center",
+                tags="instructions"
             )
             # 主文字
             color = gradient_colors[int((i / len(text)) * len(gradient_colors))]
@@ -1584,7 +1618,8 @@ class StartPage:
                 text=char,
                 fill=color,
                 font=("Impact", 20, "bold"),
-                anchor="center"
+                anchor="center",
+                tags="instructions"
             )
         
         # 绘制分数稍微调整了位置）
@@ -1596,7 +1631,8 @@ class StartPage:
             text=score_text,
             fill='#222222',
             font=("Impact", 24, "bold"),
-            anchor="w"
+            anchor="w",
+            tags="instructions"
         )
         # 分数主体
         self.canvas.create_text(
@@ -1605,7 +1641,8 @@ class StartPage:
             text=score_text,
             fill='#FFD700',  # 金色
             font=("Impact", 24, "bold"),
-            anchor="w"
+            anchor="w",
+            tags="instructions"
         )
         
         # 游戏说明文本
@@ -1636,7 +1673,8 @@ class StartPage:
                     text=line,
                     fill="#FFD900",
                     font=("Impact", 14),  # 只改这三个标题的字体
-                    anchor="w"  # 左对齐
+                    anchor="w",
+                    tags="instructions"
                 )
             else:
             # 其他所有内容保持原样
@@ -1645,7 +1683,8 @@ class StartPage:
                 text=line,
                 fill="#FFD900",
                 font=("Helvetica", 12),  # 保持原有字体
-                anchor="w"  # 左对齐
+                anchor="w",
+                tags="instructions" 
             )
             y += 20
     
@@ -1969,6 +2008,32 @@ class StartPage:
             text=button_styles[new_mode]["text"],
             bg=button_styles[new_mode]["bg"]
         )
+    def toggle_mode(self):
+        """切换 Pass/Forbid 模式"""
+        global high_score
+        high_score = load_high_score()
+        global Game_Mode  # 声明使用全局变量
+        if self.mode == "Forbid":
+            Game_Mode = "Pass"
+            self.mode = "Pass"
+            self.left_button.config(
+                text="Pass",
+                bg="#9B59B6",  # 优雅的紫色
+                activebackground="#B39DDB",  # 鼠标悬停时的颜色
+            )
+        else:
+            self.mode = "Forbid"
+            Game_Mode = "Forbid"
+            self.left_button.config(
+                text="Forbid",
+                bg="#FFA726",  # 原来的橙色
+                activebackground="#FFC266",  # 鼠标悬停时的颜色
+            )
+        high_score = load_high_score()
+        
+        # 清除旧的分数显示
+        self.canvas.delete("instructions")
+        self.draw_instructions()
     
     def start_game(self):
         """开始游戏，带平滑圆润的波纹扩散特效"""
@@ -2305,7 +2370,9 @@ class StartPage:
             button.config(bg="#81C784")  # 渐变为浅绿色
         elif button == self.quit_button:
             button.config(bg="#FF8A65")  # 渐变为浅橙色
-    
+        elif button == self.left_button:
+            button.config(bg=button.cget("activebackground")) 
+
     def on_leave(self, event, button):
         """鼠标离开效果"""
         if button == self.music_button:
@@ -2320,6 +2387,8 @@ class StartPage:
             button.config(bg="#4CAF50")
         if button == self.quit_button:
             button.config(bg="#FF5722")
+        if button == self.left_button:
+            button.config(bg=button.cget("bg"))  
 
     def move_window(self, direction, fast_mode=False):
         """移动窗口
@@ -4627,10 +4696,24 @@ def start_main_game():
         elif snake_direction == "Right":
             new_head = (head_x + 20, head_y)
             
+        # 处理穿墙逻辑
+        global Game_Mode
+        if Game_Mode == "Pass":  # 可以穿墙
+            # 如果超出边界,从对面出现
+            new_head = (
+                new_head[0] % 400,  # x坐标取余
+                new_head[1] % 400   # y坐标取余
+            )
+        
         # 检查是否撞到墙壁或自己
-        if (new_head in snake or 
-            new_head[0] < 0 or new_head[0] >= 400 or 
-            new_head[1] < 0 or new_head[1] >= 400):
+        if new_head in snake or (
+            Game_Mode == "Forbid" and (  # 不能穿墙时才检查边界
+                new_head[0] < 0 or 
+                new_head[0] >= 400 or 
+                new_head[1] < 0 or 
+                new_head[1] >= 400
+            )
+        ):
             game_running = False
             
             # 只在条件模式下停止音乐
