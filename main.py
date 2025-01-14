@@ -1349,7 +1349,7 @@ class StartPage:
             font=("Verdana", 14, "bold"),
             relief="flat",
             borderwidth=0,
-            activebackground="#FF9800" if self.mode == "Forbid" else "#B39DDB",  # 根据模式设置悬停颜色  # 鼠标悬停时的颜色
+            activebackground="#FFC266" if self.mode == "Forbid" else "#B39DDB",  # 根据模式设置悬停颜色  # 鼠标悬停时的颜色
             cursor="hand2"
         )
         self.left_button.pack(side=tk.LEFT, padx=(0, 0))  # 移除所有padding
@@ -2388,7 +2388,10 @@ class StartPage:
         if button == self.quit_button:
             button.config(bg="#FF5722")
         if button == self.left_button:
-            button.config(bg=button.cget("bg"))  
+            if self.mode == "Forbid":
+                button.config(bg="#FFA726")
+            else:
+                button.config(bg="#9B59B6")
 
     def move_window(self, direction, fast_mode=False):
         """移动窗口
