@@ -3482,6 +3482,19 @@ def start_main_game():
                         '#FF6EB4',  # 热粉红 - 可爱的树莓味
                         '#40E0D0'   # 绿松石色 - 清新的薄荷味
                         ]  # 添加彩虹颜色
+            ,
+            'star_candy': [
+                '#FF3366',  # 珊瑚玫瑰 - 充满活力不刺眼
+                '#00B8D4',  # 海洋蓝 - 清新深邃
+                '#7E57C2',  # 暮光紫 - 优雅神秘
+                '#26A69A',  # 青玉石 - 温和沉静
+                '#FF6B9C',  # 樱花粉 - 柔美甜蜜
+                '#5C6BC0',  # 星空蓝 - 深邃梦幻
+                '#2ECC71',  # 翡翠绿 - 生机盎然
+                '#9B59B6',  # 紫水晶 - 高贵典雅
+                '#16A085',  # 孔雀绿 - 沉稳优雅
+                '#F39C12'   # 琥珀金 - 温暖明亮
+            ]
         }
         
         # 不食物类型的粒子数量
@@ -3489,7 +3502,8 @@ def start_main_game():
             'normal': 15,   # 红色食物
             'golden': 25,   # 金色食物
             'special': 40 ,  # 紫色食物
-            'rainbow': 50  # 设置为50个粒子
+            'rainbow': 50 , # 设置为50个粒子
+            'star_candy': 40
         }
         
         colors = color_schemes[food_type]
@@ -4214,7 +4228,7 @@ def start_main_game():
                     'color': '#FF0033',  # 更鲜艳的红色
                     'score': 1,
                     'effect': None,
-                    'probability': 0.61
+                    'probability': 0.60
                 },
                 'golden': {
                     'color': '#FFD700',  # 更明亮的金色
@@ -4233,6 +4247,12 @@ def start_main_game():
                     'score': 10,
                     'effect': 'rainbow',
                     'probability': 0.055
+                },
+                'star_candy': {
+                    'color': '#FFD700',
+                    'score': 6,
+                    'effect': 'star_candy',
+                    'probability': 0.015
                 }
             }
             
@@ -4255,8 +4275,8 @@ def start_main_game():
             new_position = (random.randint(0, 19) * 20, random.randint(0, 19) * 20)
         
         # 使用权重随机选择食物类型
-        food_types = ['normal', 'golden', 'special', 'rainbow']
-        weights = [0.61, 0.235, 0.10, 0.055]  # 概率权重
+        food_types = ['normal', 'golden', 'special', 'rainbow', 'star_candy']
+        weights = [0.59, 0.240, 0.10, 0.055, 0.015]  # 概率权重
         
         # 使用random.choices进行加权随机选择
         food_type = random.choices(
@@ -4428,8 +4448,39 @@ def start_main_game():
                             
             # 更新颜色索引使糖果变色
             food.color_index = (food.color_index + 1) % len(food.rainbow_colors)
-    
-    # 在 start_main_game 函数中添加一个新的星星粒子类
+        elif food.food_type == 'star_candy':
+            center_x, center_y = x + 10, y + 10
+            size = 30
+            
+            # 计算五角星的点
+            points = []
+            num_points = 180  # 增加点的数量使曲线更平滑
+            for i in range(num_points):
+                # 使用参数方程计算花瓣曲线
+                angle = (2 * math.pi * i / num_points) - math.pi / 2
+                # r = a + b*sin(nθ) 其中:
+                # - a 是基础半径
+                # - b 是振幅
+                # - n 是花瓣数(这里是5)
+                r = (size/4) * (1 + math.sin(5 * angle))  # 调整size/4来控制整体大小
+                
+                points.extend([
+                    center_x + r * math.cos(angle),
+                    center_y + r * math.sin(angle)
+                ])
+            
+            t = time.time()
+            r = int(128 + 127 * math.sin(t * 2.0))
+            g = int(128 + 127 * math.sin(t * 2.0 + 2.0))
+            b = int(128 + 127 * math.sin(t * 2.0 + 4.0))
+            dynamic_color = f'#{r:02x}{g:02x}{b:02x}'
+            
+            # 绘制五角星
+            canvas.create_polygon(
+                points,
+                fill=dynamic_color,  # 使用动态颜色
+                outline=''
+            )
     class StarParticle:
         def __init__(self, x, y):
             self.x = x
@@ -5085,6 +5136,41 @@ def start_main_game():
                 #print("COLORRRRRRRR")
                 while nr == color_chose:
                     color_chose = random.randint(0, 5)  # 随机切换颜色方案
+            elif effect == 'star_candy':
+                try:
+                    nonlocal background_images, selected_bg, bg_image_path, bg_image, image, canvas
+                    
+                    # 保存当前背景以避免重复选择
+                    current_bg = selected_bg
+                    available_bgs = [bg for bg in background_images if bg != current_bg]
+                    
+                    # 从剩余背景中随机选择
+                    selected_bg = random.choice(available_bgs)
+                    bg_image_path = os.path.join(current_dir, "assets", "images", selected_bg)
+                    
+                    # 使用 with 语句确保文件正确关闭
+                    with Image.open(bg_image_path) as img:
+                        # 使用 LANCZOS 重采样进行高质量缩放
+                        image = img.resize((400, 400), Image.LANCZOS)
+                        bg_image = ImageTk.PhotoImage(image)
+                    
+                    # 清除画布并设置新背景
+                    canvas.delete("all")
+                    canvas.create_image(0, 0, anchor=tk.NW, image=bg_image)
+                    
+                    # 保持对背景图片的引用以防止垃圾回收
+                    canvas.bg_image = bg_image
+                    
+                    # 播放背景切换音效（如果有）
+                    try:
+                        sound_manager.play('background_change')
+                    except:
+                        pass
+                        
+                except Exception as e:
+                    print(f"背景切换失败: {str(e)}")
+                    # 如果切换失败，保持原有背景
+                    canvas.create_image(0, 0, anchor=tk.NW, image=canvas.bg_image)
             generate_food()
         else:
             snake.pop(0)
