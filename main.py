@@ -12,6 +12,7 @@ from collections import deque
 import ctypes
 import pywinstyles  # 导入窗口样式库
 import array
+from concurrent.futures import ThreadPoolExecutor
 # 窗口样式对照表
 WINDOW_STYLES = {
     0: "dark",       # 深色主题
@@ -3176,8 +3177,9 @@ def start_main_game():
             if elapsed >= 6.0:
                 return
             
-            # 使用 array.array 替代普通数组
-            draw_buffer = [None] * (PARTICLE_COUNT * 3 + 20 + 1)
+            # 使用列表存储绘图命令
+            BUFFER_SIZE = PARTICLE_COUNT * 3 + 20 + 1
+            draw_buffer = [None] * BUFFER_SIZE
             buffer_index = 0
             
             # 预计算常用值
@@ -3193,52 +3195,42 @@ def start_main_game():
             trail_length = 12 * fade_factor
             trail_factors = [0.7, 0.4, 0.1]
             
-            # 使用 array.array 来存储粒子数据
-            new_particle_data = array.array('d', [0.0] * (len(particles) * 8))
-            particle_index = 0
-            
-            # 批量处理粒子, 每次4个
-            particle_count = len(particles)
-            i = 0
-            
             # 创建局部变量引用以减少查找
             create_line = canvas.create_line
             create_text = canvas.create_text
             create_oval = canvas.create_oval
+            sin = math.sin
             
-            # 预计算常用值
-            wave_base = elapsed_3
-            move_base = fade_factor
-            
-            while i < particle_count - 3:
-                for j in range(4):
-                    x, y, cos_angle, sin_angle, speed, size, color, phase = particles[i+j]
+            def process_particle_batch(start_idx, end_idx):
+                nonlocal buffer_index
+                new_particles = []
+                
+                for i in range(start_idx, end_idx):
+                    if i >= len(particles):
+                        break
+                        
+                    x, y, cos_angle, sin_angle, speed, size, color, phase = particles[i]
                     
-                    # 优化波动和移动计算
-                    wave = math.sin(wave_base + phase) * 0.2
-                    move_factor = move_base * (1 + wave)
+                    # 波动和移动计算
+                    wave = sin(elapsed_3 + phase) * 0.2
+                    move_factor = fade_factor * (1 + wave)
                     speed_factor = speed * move_factor
-                    move_x = cos_angle * speed_factor
-                    move_y = sin_angle * speed_factor
-                    new_x = x + move_x
-                    new_y = y + move_y
                     
-                    # 预计算轨迹相关的值
-                    trail_size = size * fade_factor
-                    trail_cos = cos_angle * trail_length  
-                    trail_sin = sin_angle * trail_length
-                    trail_size_03 = trail_size * 0.3
+                    # 计算新位置
+                    new_x = x + cos_angle * speed_factor
+                    new_y = y + sin_angle * speed_factor
                     
-                    # 更新粒子数据
-                    idx = (particle_index + j) * 8
-                    color_num = float(int(color[1:], 16)) if isinstance(color, str) else float(color)
-                    temp_array = array.array('f', [new_x, new_y, cos_angle, sin_angle, speed, size, color_num, phase])
-                    for j in range(8):
-                        new_particle_data[idx + j] = temp_array[j]
+                    # 保存新的粒子状态
+                    new_particles.append((new_x, new_y, cos_angle, sin_angle, speed, size, color, phase))
+                    
                     # 生成轨迹
+                    trail_size = size * fade_factor
+                    trail_cos = cos_angle * trail_length
+                    trail_sin = sin_angle * trail_length
                     current_trail_size = trail_size
+                    
                     for factor in trail_factors:
-                        if buffer_index < len(draw_buffer):
+                        if buffer_index < BUFFER_SIZE:
                             trail_x = new_x - trail_cos * factor
                             trail_y = new_y - trail_sin * factor
                             draw_buffer[buffer_index] = ('line', (
@@ -3246,46 +3238,27 @@ def start_main_game():
                                 color, current_trail_size
                             ))
                             buffer_index += 1
-                            current_trail_size -= trail_size_03
-                    
-                particle_index += 4
-                i += 4
+                            current_trail_size -= trail_size * 0.3
+                
+                return new_particles
             
-            # 处理剩余粒子
-            while i < particle_count:
-                x, y, cos_angle, sin_angle, speed, size, color, phase = particles[i]
-                wave = math.sin(wave_base + phase) * 0.2
-                move_factor = move_base * (1 + wave)
-                speed_factor = speed * move_factor
-                move_x = cos_angle * speed_factor
-                move_y = sin_angle * speed_factor
-                new_x = x + move_x
-                new_y = y + move_y
-                
-                idx = particle_index * 8
-                new_particle_data[idx:idx+8] = [new_x, new_y, cos_angle, sin_angle, speed, size, color, phase]
-                particle_index += 1
-                
-                trail_size = size * fade_factor
-                trail_cos = cos_angle * trail_length
-                trail_sin = sin_angle * trail_length
-                trail_size_03 = trail_size * 0.3
-                
-                current_trail_size = trail_size
-                for factor in trail_factors:
-                    if buffer_index < len(draw_buffer):
-                        trail_x = new_x - trail_cos * factor
-                        trail_y = new_y - trail_sin * factor
-                        draw_buffer[buffer_index] = ('line', (
-                            new_x, new_y, trail_x, trail_y,
-                            color, current_trail_size
-                        ))
-                        buffer_index += 1
-                        current_trail_size -= trail_size_03
-                i += 1
+            # 使用线程池处理粒子更新
+            particle_count = len(particles)
+            batch_size = max(50, particle_count // 4)
+            new_particles = []
             
-            # 更新粒子数据
-            particles[:] = zip(*[iter(new_particle_data)]*8)
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                futures = []
+                for start_idx in range(0, particle_count, batch_size):
+                    end_idx = min(start_idx + batch_size, particle_count)
+                    futures.append(executor.submit(process_particle_batch, start_idx, end_idx))
+                
+                # 收集所有批次的结果
+                for future in futures:
+                    new_particles.extend(future.result())
+            
+            # 更新粒子列表
+            particles = new_particles
             
             # 显示数字效果
             if elapsed < 3.0:
@@ -3293,21 +3266,23 @@ def start_main_game():
                 
                 # 预计算文本参数
                 text_params = [(i * 2 * scale,
-                                ("Arial Black", base_scaled + i * 2, "bold"),
-                                accent_colors[min(i, len(accent_colors)-1)])
-                            for i in range(3)]
+                               ("Arial Black", base_scaled + int(i * 2), "bold"),
+                               accent_colors[min(i, len(accent_colors)-1)])
+                              for i in range(3)]
                 
+                # 绘制文本效果
                 for offset, font, color in text_params:
-                    if buffer_index < len(draw_buffer) - 4:
-                        draw_buffer[buffer_index:buffer_index+4] = [
-                            ('text', (center_x - offset, center_y, text_str, font, color)),
-                            ('text', (center_x + offset, center_y, text_str, font, color)),
-                            ('text', (center_x, center_y - offset, text_str, font, color)),
-                            ('text', (center_x, center_y + offset, text_str, font, color))
-                        ]
-                        buffer_index += 4
+                    for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
+                        if buffer_index < BUFFER_SIZE:
+                            draw_buffer[buffer_index] = ('text', (
+                                center_x + offset * dx,
+                                center_y + offset * dy,
+                                text_str, font, color
+                            ))
+                            buffer_index += 1
                 
-                if buffer_index < len(draw_buffer):
+                # 中心文本
+                if buffer_index < BUFFER_SIZE:
                     draw_buffer[buffer_index] = ('text', (
                         center_x, center_y, text_str,
                         ("Arial Black", base_scaled, "bold"),
@@ -3315,15 +3290,14 @@ def start_main_game():
                     ))
                     buffer_index += 1
                 
-                dot_radius = scale + scale
+                # 装饰点
+                dot_radius = scale * 2
                 dist = base_size * 1.5
-                dot_coords = [(
-                    center_x + cos_angle * dist,
-                    center_y + sin_angle * dist
-                ) for cos_angle, sin_angle in dot_positions]
-                
-                for x, y in dot_coords:
-                    if buffer_index < len(draw_buffer):
+                for angle in range(0, 360, 45):
+                    if buffer_index < BUFFER_SIZE:
+                        rad = math.radians(angle)
+                        x = center_x + math.cos(rad) * dist
+                        y = center_y + math.sin(rad) * dist
                         draw_buffer[buffer_index] = ('oval', (
                             x - dot_radius,
                             y - dot_radius,
@@ -3340,15 +3314,24 @@ def start_main_game():
             for i in range(buffer_index):
                 cmd_type, args = draw_buffer[i]
                 if cmd_type == 'line':
-                    create_line(*args[:4], fill=args[4] if isinstance(args[4], str) else f"#{int(args[4]):06x}", width=args[5],
-                                capstyle=tk.ROUND, tags="milestone")
+                    create_line(*args[:4], 
+                               fill=args[4], 
+                               width=args[5],
+                               capstyle=tk.ROUND, 
+                               tags="milestone")
                 elif cmd_type == 'text':
-                    create_text(*args[:2], text=args[2], font=args[3],
-                                fill=args[4] if isinstance(args[4], str) else f"#{int(args[4]):06x}", tags="milestone")
+                    create_text(*args[:2], 
+                               text=args[2], 
+                               font=args[3],
+                               fill=args[4], 
+                               tags="milestone")
                 else:  # oval
-                    create_oval(*args[:4], fill=args[4] if isinstance(args[4], str) else f"#{int(args[4]):06x}",
-                                outline="", tags="milestone")
+                    create_oval(*args[:4], 
+                               fill=args[4],
+                               outline="", 
+                               tags="milestone")
             
+            # 继续动画
             canvas.after(16, animate_milestone)
         
         animate_milestone()
@@ -5124,7 +5107,7 @@ def start_main_game():
             
             effect = food.properties[food.food_type]['effect']
             if effect == 'speed_up':
-                snake_speed = max(75, snake_speed - 10)
+                snake_speed = max(77, snake_speed - 10)
                 show_effect_message('speed_up')
             elif effect == 'slow_down':
                 snake_speed = min(150, snake_speed + 10)
@@ -5138,6 +5121,7 @@ def start_main_game():
                     color_chose = random.randint(0, 5)  # 随机切换颜色方案
             elif effect == 'star_candy':
                 try:
+                    snake_speed = min(150, snake_speed + 2)
                     nonlocal background_images, selected_bg, bg_image_path, bg_image, image, canvas
                     
                     # 保存当前背景以避免重复选择

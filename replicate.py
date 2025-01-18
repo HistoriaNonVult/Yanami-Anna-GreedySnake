@@ -11,7 +11,7 @@ import customtkinter as ctk
 from collections import deque
 import ctypes
 import pywinstyles  # 导入窗口样式库
-
+import array
 # 窗口样式对照表
 WINDOW_STYLES = {
     0: "dark",       # 深色主题
@@ -37,6 +37,8 @@ pygame.mixer.set_num_channels(32)  # 增加同时播放的声道数
 # 获取当前脚本所在目录
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
+Game_Mode = "Forbid"  # 默认为 Forbid 模式
+high_score = 0
 # 添加音效管理器类
 class SoundManager:
     def __init__(self):
@@ -146,7 +148,9 @@ def initialize_high_score_file():
     """初始化最高分文件"""
     data_dir = get_data_dir()
     high_score_path = os.path.join(data_dir, 'high_score.txt')
-    
+    high_score_path_2 = os.path.join(data_dir, 'high_score_2.txt')
+    if Game_Mode == "Pass":
+        high_score_path = high_score_path_2
     # 如果文件不存在，创建它并初始化为0
     if not os.path.exists(high_score_path):
         try:
@@ -160,7 +164,9 @@ def load_high_score():
     """加载最高分"""
     data_dir = get_data_dir()
     high_score_path = os.path.join(data_dir, 'high_score.txt')
-    
+    high_score_path_2 = os.path.join(data_dir, 'high_score_2.txt')
+    if Game_Mode == "Pass":
+        high_score_path = high_score_path_2
     try:
         # 如果文件不存在，先创建它
         if not os.path.exists(high_score_path):
@@ -177,7 +183,9 @@ def save_high_score(score):
     """保存最高分"""
     data_dir = get_data_dir()
     high_score_path = os.path.join(data_dir, 'high_score.txt')
-    
+    high_score_path_2 = os.path.join(data_dir, 'high_score_2.txt')
+    if Game_Mode == "Pass":
+        high_score_path = high_score_path_2
     try:
         with open(high_score_path, 'w') as file:
             file.write(str(score))
@@ -191,7 +199,7 @@ class TransparentWindow:
         
         # Set window size and position
         window_width = 480
-        window_height = 840
+        window_height = 870
         screen_width = parent.winfo_screenwidth()
         screen_height = parent.winfo_screenheight()
         x = (screen_width - window_width) // 2
@@ -268,6 +276,47 @@ class TransparentWindow:
         )
         self.title_label.pack(side=tk.LEFT, padx=15)
         
+        # 创建装饰线Canvas
+        self.deco_canvas = tk.Canvas(
+            self.title_bar,
+            width=100,
+            height=20,
+            bg='#0D1526',
+            highlightthickness=0
+        )
+        self.deco_canvas.pack(side=tk.LEFT)
+        
+        # 创建能量脉冲动画
+        def animate_pulse():
+            self.deco_canvas.delete('all')
+            
+            # 基础线
+            self.deco_canvas.create_line(
+                0, 10, 100, 10,
+                fill='#0A2A40',
+                width=1
+            )
+            
+            # 计算脉冲位置
+            t = time.time() * 1.3  # 加快脉冲速度
+            pulse_pos = (t % 1) * 100  # 控制脉冲移动速度
+            
+            # 绘制脉冲效果
+            for x in range(100):
+                dist = abs(x - pulse_pos)
+                if dist < 15:  # 缩短脉冲长度使其更锐利
+                    intensity = (1 - dist/15) * 255
+                    color = f'#00{int(intensity):02x}FF'
+                    self.deco_canvas.create_line(
+                        x, 10, x+1, 10,
+                        fill=color,
+                        width=2
+                    )
+            
+            self.window.after(20, animate_pulse)  # 提高刷新率
+            
+        animate_pulse()
+        
         # Content area
         content_frame = tk.Frame(
             self.inner_border,
@@ -280,12 +329,13 @@ class TransparentWindow:
             ("Basic Controls", [
                 "Arrow Keys ↑←↓→: Control snake movement",
                 "WASD Keys: Alternative movement controls",
+                "Mouse: Alternative movement controls",
                 "Space Bar: Pause/Resume game",
                 "P Key: Pause/Resume game",
                 "R Key: Restart game",
                 "B Key: Return to main menu",
-                "Shift + Arrow/WASD: Move window",
-                "Ctrl + H: Show this instruction window"
+                "Shift/Control + Arrow/WASD: Move window",
+                "Shift + H: Show this instruction window"
             ]),
             ("Food System", [
                 "Regular Food: Red, +1 point",
@@ -446,15 +496,24 @@ class StartPage:
     def show_transparent_window(self, event):
         TransparentWindow(self.window)
     def __init__(self):
-        # 先创建窗口
+        # 直接创建主窗口
         self.window = tk.Tk()
+        
+        # 在创建后立即设置大小为0并移到屏幕外
+        self.window.geometry("1x1+-100+-100")
+        
+        # 设置所有属性
         self.window.focus_force()  # 强制获取焦点
         self.window.lift()         # 将窗口提升到最前面
         self.window.bind('<Shift-h>', self.show_transparent_window)
         self.window.bind('<Shift-H>', self.show_transparent_window)
+        
+        # 立即更新窗口以应用初始设置
+        self.window.update_idletasks()
+        
         # 如果是Windows系统，可以使用系统主题
         if os.name == 'nt':  # Windows
-            # 初始设置完全透明r
+            # 初始设置完全透明
             self.window.attributes('-alpha', 0.0)
             
             # 创建淡入效果
@@ -1272,12 +1331,35 @@ class StartPage:
         )
         self.start_button.pack(pady=10)
         
-        # 退出按钮
+        # ... existing code ...
+
+        # 创建一个新的框架用于底部按钮
+        button_row_frame = tk.Frame(button_frame, bg='#050505')
+        button_row_frame.pack(fill='x', pady=10)
+        self.mode = Game_Mode
+        # 左边的按钮 - 与Start Game左对齐
+        self.left_button = tk.Button(
+            button_row_frame,
+            text=self.mode,
+            command=self.toggle_mode,
+            width=12,
+            height=1,
+            bg="#FFA726" if self.mode == "Forbid" else "#9B59B6",  # 根据模式设置颜色,
+            fg="white",
+            font=("Verdana", 14, "bold"),
+            relief="flat",
+            borderwidth=0,
+            activebackground="#FFC266" if self.mode == "Forbid" else "#B39DDB",  # 根据模式设置悬停颜色  # 鼠标悬停时的颜色
+            cursor="hand2"
+        )
+        self.left_button.pack(side=tk.LEFT, padx=(0, 0))  # 移除所有padding
+
+        # 退出按钮 - 与Start Game右对齐
         self.quit_button = tk.Button(
-            button_frame,
+            button_row_frame,
             text="Quit",
             command=self.window.destroy,
-            width=24,
+            width=11,
             height=1,
             bg="#FF5722",
             fg="white",
@@ -1286,11 +1368,11 @@ class StartPage:
             borderwidth=0,
             cursor="hand2"
         )
-        self.quit_button.pack(pady=10)
+        self.quit_button.pack(side=tk.RIGHT, padx=(0, 0))  # 使用RIGHT对齐，移除所有padding
         self.window.bind("<Escape>", lambda event: self.window.destroy())
 
         # 为按钮添加悬停效果
-        for button in [self.music_button, self.start_button, self.quit_button]:
+        for button in [self.music_button, self.start_button, self.quit_button,self.left_button]:
             button.bind("<Enter>", lambda e, b=button: self.on_hover(e, b))
             button.bind("<Leave>", lambda e, b=button: self.on_leave(e, b))
         
@@ -1475,6 +1557,7 @@ class StartPage:
     
     def draw_instructions(self):
         # 加载最高分
+        global high_score
         high_score = load_high_score()
         
         # 创建渐变颜色（使用更鲜艳的配色）
@@ -1510,6 +1593,7 @@ class StartPage:
         
         # 绘制"BEST SCORE:"文本（注意这里添加了冒号）
         text = "BEST SCORE:"  # 添冒号
+        high_score = load_high_score()
         score_text = str(high_score)
         char_width = 14
         start_x = 200 - ((len(text) * char_width + 40) / 2)  # 调整整体位置，为分数留出空间
@@ -1523,7 +1607,8 @@ class StartPage:
                 text=char,
                 fill='#222222',
                 font=("Impact", 20, "bold"),
-                anchor="center"
+                anchor="center",
+                tags="instructions"
             )
             # 主文字
             color = gradient_colors[int((i / len(text)) * len(gradient_colors))]
@@ -1533,7 +1618,8 @@ class StartPage:
                 text=char,
                 fill=color,
                 font=("Impact", 20, "bold"),
-                anchor="center"
+                anchor="center",
+                tags="instructions"
             )
         
         # 绘制分数稍微调整了位置）
@@ -1545,7 +1631,8 @@ class StartPage:
             text=score_text,
             fill='#222222',
             font=("Impact", 24, "bold"),
-            anchor="w"
+            anchor="w",
+            tags="instructions"
         )
         # 分数主体
         self.canvas.create_text(
@@ -1554,7 +1641,8 @@ class StartPage:
             text=score_text,
             fill='#FFD700',  # 金色
             font=("Impact", 24, "bold"),
-            anchor="w"
+            anchor="w",
+            tags="instructions"
         )
         
         # 游戏说明文本
@@ -1562,7 +1650,7 @@ class StartPage:
         🎮 Instructions: Shift+H
         
         🎯 Controls:
-        • Arrow Keys or WASD to move snake
+        • Arrow or WASD or Mouse to move snake
         • P/SPACE to pause/continue
         • R to restart
         
@@ -1585,7 +1673,8 @@ class StartPage:
                     text=line,
                     fill="#FFD900",
                     font=("Impact", 14),  # 只改这三个标题的字体
-                    anchor="w"  # 左对齐
+                    anchor="w",
+                    tags="instructions"
                 )
             else:
             # 其他所有内容保持原样
@@ -1594,7 +1683,8 @@ class StartPage:
                 text=line,
                 fill="#FFD900",
                 font=("Helvetica", 12),  # 保持原有字体
-                anchor="w"  # 左对齐
+                anchor="w",
+                tags="instructions" 
             )
             y += 20
     
@@ -1918,6 +2008,32 @@ class StartPage:
             text=button_styles[new_mode]["text"],
             bg=button_styles[new_mode]["bg"]
         )
+    def toggle_mode(self):
+        """切换 Pass/Forbid 模式"""
+        global high_score
+        high_score = load_high_score()
+        global Game_Mode  # 声明使用全局变量
+        if self.mode == "Forbid":
+            Game_Mode = "Pass"
+            self.mode = "Pass"
+            self.left_button.config(
+                text="Pass",
+                bg="#9B59B6",  # 优雅的紫色
+                activebackground="#B39DDB",  # 鼠标悬停时的颜色
+            )
+        else:
+            self.mode = "Forbid"
+            Game_Mode = "Forbid"
+            self.left_button.config(
+                text="Forbid",
+                bg="#FFA726",  # 原来的橙色
+                activebackground="#FFC266",  # 鼠标悬停时的颜色
+            )
+        high_score = load_high_score()
+        
+        # 清除旧的分数显示
+        self.canvas.delete("instructions")
+        self.draw_instructions()
     
     def start_game(self):
         """开始游戏，带平滑圆润的波纹扩散特效"""
@@ -1969,17 +2085,19 @@ class StartPage:
                 # 基础偏转因子
                 base_deviation = random.uniform(-0.15, 0.15)  # ±15% 的基础偏移
                 
-                # 动态偏转
-                dynamic_deviation = math.sin(angle * 3) * 0.08  # 添加周期性变化
+                # 动态偏转 - 使用多重正弦叠加产生更复杂的光效
+                dynamic_deviation = (math.sin(angle * 3) * 0.08 + 
+                                  math.sin(angle * 5) * 0.05 +
+                                  math.sin(angle * 7) * 0.03)
                 
                 # 随机扰动
-                noise = random.gauss(0, 0.06)  # 使用高斯分布获得更自然的随机性
+                noise = random.gauss(0, 0.06)
                 
                 # 合并所有偏转效果
                 total_deviation = base_deviation + dynamic_deviation + noise
                 
                 # 确保总偏转在合理范围内
-                total_deviation = max(-0.3, min(0.3, total_deviation))  # 限制在±30%范围内
+                total_deviation = max(-0.3, min(0.3, total_deviation))
                 
                 # 计算最终的角度索引
                 adjusted_angle = angle + (2 * math.pi * total_deviation)
@@ -1988,14 +2106,24 @@ class StartPage:
                 # 确保索引在有效范围内
                 color_index = color_index % len(colors)
                 
-                return colors[color_index]
+                # 随机添加光晕效果
+                if random.random() < 0.2:  # 20%概率产生光晕
+                    return "#FFFFFF"  # 纯白色光晕
+                    
+                base_color = colors[color_index]
+                # 15%概率增加彩虹光晕
+                if random.random() < 0.15:
+                    rainbow_colors = ["#FFD700", "#FF69B4", "#00FFFF", "#FF1493"]
+                    return random.choice(rainbow_colors)
+                    
+                return base_color
                 
             # 在粒子创建时添加特殊效果
-            for i in range(60):  # 增加粒子数量
+            for i in range(60):  # 保持原有粒子数量
                 angle = random.uniform(0, 2 * math.pi)
                 color = get_color_with_variation(angle)
                 
-                # 不同半径的粒子使用不同速度
+                # 保持原有速度范围
                 base_speed = random.uniform(2, 5)
                 if i < 20:  # 内圈
                     speed = base_speed * 0.8
@@ -2016,7 +2144,9 @@ class StartPage:
                     'alpha': 1.0,
                     'size': size,
                     'trail': [],
-                    'sparkle': random.random() < 0.5  # 50%的粒子会闪烁
+                    'sparkle': random.random() < 0.6,  # 60%的粒子会闪烁
+                    'glow': random.random() < 0.4,     # 40%的粒子会发光
+                    'rainbow_trail': random.random() < 0.3  # 30%的粒子会有彩虹轨迹
                 }
                 particles.append(particle)
             
@@ -2213,7 +2343,15 @@ class StartPage:
                     else:
                         # 切换到游戏
                         if self.music_mode.get() in ["always", "conditional"]:
-                            pygame.mixer.music.load(os.path.join(current_dir, "assets", "music", "background.mp3"))
+                            # 从5首背景音乐中随机选择一首
+                            background_music = random.choice([
+                                "background.mp3",
+                                "background2.mp3", 
+                                "background3.mp3",
+                                "background4.mp3",
+                                "background5.mp3"
+                            ])
+                            pygame.mixer.music.load(os.path.join(current_dir, "assets", "music", background_music))
                             pygame.mixer.music.play(-1)
                         self.window.destroy()
                         start_main_game()
@@ -2232,7 +2370,9 @@ class StartPage:
             button.config(bg="#81C784")  # 渐变为浅绿色
         elif button == self.quit_button:
             button.config(bg="#FF8A65")  # 渐变为浅橙色
-    
+        elif button == self.left_button:
+            button.config(bg=button.cget("activebackground")) 
+
     def on_leave(self, event, button):
         """鼠标离开效果"""
         if button == self.music_button:
@@ -2247,6 +2387,11 @@ class StartPage:
             button.config(bg="#4CAF50")
         if button == self.quit_button:
             button.config(bg="#FF5722")
+        if button == self.left_button:
+            if self.mode == "Forbid":
+                button.config(bg="#FFA726")
+            else:
+                button.config(bg="#9B59B6")
 
     def move_window(self, direction, fast_mode=False):
         """移动窗口
@@ -2283,14 +2428,14 @@ class StartPage:
         x = max(0, min(x, screen_width - window_width))
         y = max(0, min(y, screen_height - window_height))
 
-        # 创建更明显的轨迹特效
+        # 创建轨迹特效
         trail = tk.Toplevel(self.window)
         trail.overrideredirect(True)
-        trail.attributes('-alpha', 0.4)  # 增加透明度使特效更明显
+        trail.attributes('-alpha', 0.4)
         trail.lift()
         
         # 设置轨迹窗口位置和大小
-        size = 10  # 增加轨迹大小到10
+        size = 10
         if direction in ["Left", "Right"]:
             trail_width = step
             trail_height = size
@@ -2304,7 +2449,7 @@ class StartPage:
             
         trail.geometry(f"{trail_width}x{trail_height}+{trail_x}+{trail_y}")
         
-        # 创建Canvas并添加渐变效果
+        # 创建Canvas
         canvas = tk.Canvas(
             trail,
             width=trail_width,
@@ -2313,25 +2458,25 @@ class StartPage:
         )
         canvas.pack()
         
-        # 根据模式设置不同的颜色
+        # 根据模式设置颜色
         if fast_mode:
-            color1 = "#FF1493"  # 亮粉色
-            color2 = "#FF69B4"  # 粉红色
+            color1, color2 = "#FF1493", "#FF00FF"  # 深粉色和亮紫色,更鲜艳的搭配
         else:
-            color1 = "#4169E1"  # 皇家蓝
-            color2 = "#87CEEB"  # 天蓝色
+            color1, color2 = "#1E90FF", "#00BFFF"  # 道奇蓝和深天蓝,更清新的搭配
             
-        # 创建渐变效果
+        # 优化渐变效果绘制
         if direction in ["Left", "Right"]:
-            for i in range(trail_width):
+            # 水平方向每5个像素绘制一条线以减少绘制次数
+            for i in range(0, trail_width, 5):
                 ratio = i / trail_width
                 color = self.gradient_color(color1, color2, ratio)
-                canvas.create_line(i, 0, i, trail_height, fill=color)
+                canvas.create_rectangle(i, 0, i+5, trail_height, fill=color, outline="")
         else:
-            for i in range(trail_height):
+            # 垂直方向每5个像素绘制一条线以减少绘制次数
+            for i in range(0, trail_height, 5):
                 ratio = i / trail_height
                 color = self.gradient_color(color1, color2, ratio)
-                canvas.create_line(0, i, trail_width, i, fill=color)
+                canvas.create_rectangle(0, i, trail_width, i+5, fill=color, outline="")
         
         # 设置平滑淡出
         def fade_out(alpha=0.4, step=0.05):
@@ -2341,7 +2486,7 @@ class StartPage:
             else:
                 trail.destroy()
                 
-        trail.after(10, fade_out)  # 开始淡出效果
+        trail.after(10, fade_out)
         
         # 立即更新窗口位置
         self.window.geometry(f"+{x}+{y}")
@@ -2367,7 +2512,7 @@ class StartPage:
 
 def start_main_game():
     
-    color_chose = random.randint(0, 2)
+    color_chose = random.randint(3, 5)
     
     # 创建音效管理器
     sound_manager = SoundManager()
@@ -2379,7 +2524,7 @@ def start_main_game():
     # 初始化背景音乐
     if music_mode in ["always", "conditional"]:
         try:
-            bgm_name = random.choice(["background", "background2", "background3"])
+            bgm_name = random.choice(["background", "background2", "background3", "background4", "background5"])
             bgm_path = os.path.join(current_dir, "assets", "music", f"{bgm_name}.mp3")
             pygame.mixer.music.load(bgm_path)
             pygame.mixer.music.play(-1)
@@ -2401,12 +2546,16 @@ def start_main_game():
                 # 创建淡入效果
                 def fade_in(alpha=0.0):
                     try:
-                        if alpha < 0.98:
-                            next_alpha = min(alpha + 0.062, 0.98)
+                        if alpha < 1.0:
+                            # 使用正弦函数实现更自然的淡入效果
+                            # sin(x)在[0,π/2]区间从0渐变到0.98
+                            progress = alpha / 1.0  # 归一化进度到[0,1]
+                            next_alpha = 0.98 * math.sin(progress * math.pi/2)
                             window.attributes('-alpha', next_alpha)
-                            window.after(20, lambda: fade_in(next_alpha))
+                            window.after(20, lambda: fade_in(alpha + 0.05))
                     except Exception as e:
                         print(f"淡入效果出错: {e}")
+                        window.attributes('-alpha', 0.98)
                 
                 # 启动淡入效果
                 window.after(100, fade_in)
@@ -2414,7 +2563,7 @@ def start_main_game():
                 print(f"设置窗口透明度失败: {e}")
                 # 如果透明度设置失败,使用默认不透明
                 window.attributes('-alpha', 1.0)
-
+    
         # 添加图标
         try:
             icon_path = os.path.join(current_dir, "assets", "images", "snake_icon.ico")
@@ -2437,7 +2586,13 @@ def start_main_game():
             # 如果获取失败使用默认值
             screen_width = 1024
             screen_height = 768
-            
+        try:
+            pywinstyles.apply_style(window, "immersive")
+            window.overrideredirect(True)     # 移除标准窗口边框
+            # 或者使用透明效果
+            # pywinstyles.apply_style(self.window, "transparent")
+        except Exception as e:
+            print(f"应用窗口样式失败: {e}")    
         # 计算窗口位置,确保在屏幕内
         x = max(0, min((screen_width - window_width) // 2, screen_width - window_width))
         y = max(0, min((screen_height - window_height) // 2, screen_height - window_height))
@@ -2456,7 +2611,7 @@ def start_main_game():
     except Exception as e:
         print(f"创建主窗口失败: {e}")
         sys.exit(1)
-    
+         
     def move_window(direction, fast_mode=False):
         """移动窗口位置"""
         x = window.winfo_x()
@@ -2556,26 +2711,26 @@ def start_main_game():
     window.bind("<Control-Right>", lambda e: move_window("Right")) 
     window.bind("<Control-Up>", lambda e: move_window("Up"))
     window.bind("<Control-Down>", lambda e: move_window("Down"))
-    window.bind("<Shift-Left>", lambda e: move_window("Left"))
-    window.bind("<Shift-Right>", lambda e: move_window("Right")) 
-    window.bind("<Shift-Up>", lambda e: move_window("Up"))
-    window.bind("<Shift-Down>", lambda e: move_window("Down"))
+    window.bind("<Shift-Left>", lambda e: move_window("Left",True))
+    window.bind("<Shift-Right>", lambda e: move_window("Right",True)) 
+    window.bind("<Shift-Up>", lambda e: move_window("Up",True))
+    window.bind("<Shift-Down>", lambda e: move_window("Down",True))
     window.bind("<Control-a>", lambda e: move_window("Left"))
     window.bind("<Control-d>", lambda e: move_window("Right")) 
     window.bind("<Control-w>", lambda e: move_window("Up"))
     window.bind("<Control-s>", lambda e: move_window("Down"))
-    window.bind("<Shift-a>", lambda e: move_window("Left"))
-    window.bind("<Shift-d>", lambda e: move_window("Right")) 
-    window.bind("<Shift-w>", lambda e: move_window("Up"))
-    window.bind("<Shift-s>", lambda e: move_window("Down"))
+    window.bind("<Shift-a>", lambda e: move_window("Left",True))
+    window.bind("<Shift-d>", lambda e: move_window("Right",True)) 
+    window.bind("<Shift-w>", lambda e: move_window("Up",True))
+    window.bind("<Shift-s>", lambda e: move_window("Down",True))
     window.bind("<Control-A>", lambda e: move_window("Left"))
     window.bind("<Control-D>", lambda e: move_window("Right")) 
     window.bind("<Control-W>", lambda e: move_window("Up"))
     window.bind("<Control-S>", lambda e: move_window("Down"))
-    window.bind("<Shift-A>", lambda e: move_window("Left"))
-    window.bind("<Shift-D>", lambda e: move_window("Right")) 
-    window.bind("<Shift-W>", lambda e: move_window("Up"))
-    window.bind("<Shift-S>", lambda e: move_window("Down"))
+    window.bind("<Shift-A>", lambda e: move_window("Left",True))
+    window.bind("<Shift-D>", lambda e: move_window("Right",True)) 
+    window.bind("<Shift-W>", lambda e: move_window("Up",True))
+    window.bind("<Shift-S>", lambda e: move_window("Down",True))
     # 设置游戏画布
     canvas = tk.Canvas(
         window,
@@ -2590,7 +2745,9 @@ def start_main_game():
         fill=tk.NONE         # 不需要填充
     )
     # 修改背景图片加载径
-    bg_image_path = os.path.join(current_dir, "assets", "images", "background.jpg")
+    background_images = ['background.jpg', 'background2.jpg','background3.jpg','background4.jpg','background5.jpg']
+    selected_bg = random.choice(background_images)
+    bg_image_path = os.path.join(current_dir, "assets", "images", selected_bg)
     image = Image.open(bg_image_path)
     image = image.resize((400, 400), Image.LANCZOS)
     bg_image = ImageTk.PhotoImage(image)
@@ -2628,23 +2785,91 @@ def start_main_game():
     # 定义霓虹灯颜色
     def generate_gradient_colors(steps):
         colors = [
-            "#FF6B6B",  # 珊瑚红
-            "#4ECDC4",  # 青绿色
-            "#45B7D1",  # 天蓝色
-            "#96CEB4",  # 薄荷绿
-            "#FFEEAD",  # 淡黄色
-            "#FF9999"   # 红色
-        ]
+            # 梦幻极光
+            [
+                "#FF5F5F",  # 珊瑚红 - 与金色黄昏的珊瑚色呼应
+                "#3ECDC4",  # 青绿色 - 与深海幻境的海蓝绿相近
+                "#45B7E1",  # 天蓝色 - 与深海幻境的皇家蓝相近
+                "#DDA0DD",  # 梅红色 - 与紫罗兰梦呼应
+                "#FFB7C5",  # 樱花粉 - 与樱花飞舞呼应
+                "#FF4F4F"   # 浅红色 - 与樱花飞舞的深粉红相近
+            ],
+            # 深海幻境
+            [
+                "#00008B",  # 深蓝色
+                "#4169E1",  # 皇家蓝
+                "#00CED1",  # 深青色
+                "#20B2AA",  # 海蓝绿
+                "#7FFFD4",  # 碧绿色
+                "#98FB98"   # 嫩绿色
+            ],
+            # 樱花飞舞
+            [
+                "#FFB7C5",  # 樱花粉
+                "#FFC0CB",  # 粉红色
+                "#FFB6C1",  # 浅粉红
+                "#FF69B4",  # 热粉红
+                "#FF1493",  # 深粉红
+                "#DB7093"   # 苍紫罗兰红
+            ],
+            # 紫罗兰梦
+            [
+                "#E6E6FA",  # 薰衣草色
+                "#D8BFD8",  # 蓟色
+                "#DDA0DD",  # 梅红色
+                "#DA70D6",  # 兰花色
+                "#BA55D3",  # 中兰花紫
+                "#9370DB"   # 中紫色
+            ],
+            # 金色黄昏
+            [
+                "#FFD700",  # 金色
+                "#FFA500",  # 橙色
+                "#FF8C00",  # 深橙色
+                "#FF7F50",  # 珊瑚色
+                "#FF6347",  # 番茄色
+                "#FF4500"   # 橙红色
+            ],
+            # 森林晨露
+            [
+                "#90EE90",  # 淡绿色
+                "#98FB98",  # 嫩绿色
+                "#3CB371",  # 中海绿色
+                "#2E8B57",  # 海绿色
+                "#228B22",  # 森林绿
+                "#006400"   # 深绿色
+            ],
+            # 极光之夜
+            [
+                "#191970",  # 午夜蓝
+                "#483D8B",  # 暗板岩蓝
+                "#6A5ACD",  # 板岩蓝
+                "#7B68EE",  # 中板岩蓝
+                "#9370DB",  # 中紫色
+                "#8A2BE2"   # 紫罗兰色
+            ]
+        ][random.randint(0, 6)]  # 随机选择一种配色方案
+        
+        # 预先计算所有颜色的RGB值
+        rgb_colors = []
+        for color in colors:
+            r = int(color[1:3], 16)
+            g = int(color[3:5], 16)
+            b = int(color[5:7], 16)
+            rgb_colors.append((r, g, b))
         
         gradient = []
+        colors_len = len(colors) - 1
+        step_size = colors_len / steps
+        
         for i in range(steps):
-            index = (i / steps) * (len(colors) - 1)
-            color1 = colors[int(index)]
-            color2 = colors[min(int(index) + 1, len(colors) - 1)]
+            index = i * step_size
+            idx1 = int(index)
+            idx2 = min(idx1 + 1, colors_len)
             
-            t = index - int(index)
-            r1, g1, b1 = int(color1[1:3], 16), int(color1[3:5], 16), int(color1[5:7], 16)
-            r2, g2, b2 = int(color2[1:3], 16), int(color2[3:5], 16), int(color2[5:7], 16)
+            t = index - idx1
+            r1, g1, b1 = rgb_colors[idx1]
+            r2, g2, b2 = rgb_colors[idx2]
             
             r = int(r1 * (1-t) + r2 * t)
             g = int(g1 * (1-t) + g2 * t)
@@ -2658,85 +2883,69 @@ def start_main_game():
     offset = [0]  # 用于颜色偏移
     
     def update_border_color():
-        offset[0] = (offset[0] + 1) % len(gradient_colors)
-        
-        # 清除旧的内容
-        border_left.delete("all")
-        border_bottom.delete("all")
-        border_right.delete("all")
-        
-        # 计算总段数(三个边框的总长度)
+        # 预先计算常用值
         segments_per_border = 30  # 每个边框30段
-        
-        # 预先计算一些常量
         height_per_segment = 445 / segments_per_border
         width_per_segment = 405 / segments_per_border
+        gradient_len = len(gradient_colors)
         
-        # 批量创建图形,减少create_rectangle调用次数
-        left_rects = []
-        right_rects = []
-        bottom_rects = []
+        # 更新偏移量
+        offset[0] = (offset[0] + 1) % gradient_len
         
-        # 绘制左边框
-        for i in range(segments_per_border):
-            color_index = (i + offset[0]) % len(gradient_colors)
-            y1 = i * height_per_segment
-            y2 = (i + 1) * height_per_segment
-            glow_color = gradient_colors[color_index]
-            
-            # 合并发光层和主要颜色为一个矩形,减少绘制次数
-            left_rects.extend([
-                (-2, y1-2, 7, y2+2, glow_color, "gray50"),  # 发光层
-                (0, y1, 5, y2, glow_color, "")  # 主要颜色
-            ])
+        # 预先计算所有需要的颜色索引和颜色
+        color_indices = [(i + offset[0]) % gradient_len for i in range(segments_per_border * 3)]
+        colors = [gradient_colors[i] for i in color_indices]
         
-        # 绘制右边框
-        for i in range(segments_per_border):
-            color_index = (i + segments_per_border + offset[0]) % len(gradient_colors)
-            y1 = i * height_per_segment
-            y2 = (i + 1) * height_per_segment
-            glow_color = gradient_colors[color_index]
-            
-            right_rects.extend([
-                (-2, y1-2, 7, y2+2, glow_color, "gray50"),
-                (0, y1, 5, y2, glow_color, "")
-            ])
+        # 分配颜色给各个边框
+        left_colors = colors[:segments_per_border]
+        right_colors = colors[segments_per_border:segments_per_border*2]
+        bottom_colors = colors[segments_per_border*2:]
         
-        # 绘制底边框
-        for i in range(segments_per_border):
-            color_index = (i + 2 * segments_per_border + offset[0]) % len(gradient_colors)
-            x1 = i * width_per_segment
-            x2 = (i + 1) * width_per_segment
-            glow_color = gradient_colors[color_index]
+        # 清除旧的内容
+        for canvas in [border_left, border_right, border_bottom]:
+            canvas.delete("all")
             
-            bottom_rects.extend([
-                (x1-2, -2, x2+2, 8, glow_color, "gray50"),
-                (x1, 0, x2, 6, glow_color, "")
-            ])
+        # 批量创建图形数据
+        def create_border_rects(colors, is_vertical):
+            rects = []
+            for i, color in enumerate(colors):
+                if is_vertical:
+                    y1 = i * height_per_segment
+                    y2 = y1 + height_per_segment
+                    rects.extend([
+                        (-2, y1-2, 7, y2+2, color, "gray50"),
+                        (0, y1, 5, y2, color, "")
+                    ])
+                else:
+                    x1 = i * width_per_segment
+                    x2 = x1 + width_per_segment
+                    rects.extend([
+                        (x1-2, -2, x2+2, 8, color, "gray50"),
+                        (x1, 0, x2, 6, color, "")
+                    ])
+            return rects
             
-        # 批量创建图形
-        for x1, y1, x2, y2, color, stipple in left_rects:
-            border_left.create_rectangle(x1, y1, x2, y2, fill=color, outline="", stipple=stipple)
-            
-        for x1, y1, x2, y2, color, stipple in right_rects:
-            border_right.create_rectangle(x1, y1, x2, y2, fill=color, outline="", stipple=stipple)
-            
-        for x1, y1, x2, y2, color, stipple in bottom_rects:
-            border_bottom.create_rectangle(x1, y1, x2, y2, fill=color, outline="", stipple=stipple)
+        # 生成并绘制所有边框
+        for canvas, colors, is_vertical in [
+            (border_left, left_colors, True),
+            (border_right, right_colors, True), 
+            (border_bottom, bottom_colors, False)
+        ]:
+            rects = create_border_rects(colors, is_vertical)
+            for x1, y1, x2, y2, color, stipple in rects:
+                canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="", stipple=stipple)
         
         # 绘制圆角连接处
-        left_corner_index = (segments_per_border + offset[0] - 1) % len(gradient_colors)
-        right_corner_index = (2 * segments_per_border + offset[0] - 1) % len(gradient_colors)
+        left_corner_color = left_colors[-1]
+        right_corner_color = right_colors[-1]
         
         # 左下角
-        glow_color = gradient_colors[left_corner_index]
-        border_left.create_arc(-2, 438, 12, 452, start=180, extent=90, fill=glow_color, stipple="gray50")
-        border_left.create_arc(0, 440, 10, 450, start=180, extent=90, fill=glow_color)
+        border_left.create_arc(-2, 438, 12, 452, start=180, extent=90, fill=left_corner_color, stipple="gray50")
+        border_left.create_arc(0, 440, 10, 450, start=180, extent=90, fill=left_corner_color)
         
         # 右下角
-        glow_color = gradient_colors[right_corner_index]
-        border_right.create_arc(-7, 438, 7, 452, start=270, extent=90, fill=glow_color, stipple="gray50")
-        border_right.create_arc(-5, 440, 5, 450, start=270, extent=90, fill=glow_color)
+        border_right.create_arc(-7, 438, 7, 452, start=270, extent=90, fill=right_corner_color, stipple="gray50")
+        border_right.create_arc(-5, 440, 5, 450, start=270, extent=90, fill=right_corner_color)
         
         window.after(16, update_border_color)
     
@@ -2921,112 +3130,226 @@ def start_main_game():
         center_x, center_y = 200, 200
         start_time = time.time()
         
-        # 预计算一些常量值
+        # 预计算所有常量
         TWO_PI = 2 * math.pi
         PARTICLE_COUNT = 32
         ANGLE_STEP = TWO_PI / PARTICLE_COUNT
-        
-        # 优化粒子创建
-        particles = [
-            {
-                'x': center_x,
-                'y': center_y,
-                'angle': i * ANGLE_STEP,
-                'speed': random.uniform(3.0, 4.0),
-                'size': random.uniform(1.5, 2.5),
-                'color': colors['primary'][min(int((i / PARTICLE_COUNT) * len(colors['primary'])), len(colors['primary'])-1)],
-                'life': 1.0,
-                'phase': random.uniform(0, TWO_PI)
-            }
-            for i in range(PARTICLE_COUNT)
-        ]
-        
-        # 缓存一些常用值
         base_size = 42
+        
+        # 预计算所有三角函数值和装饰点位置
+        cos_angles = [math.cos(i * ANGLE_STEP) for i in range(PARTICLE_COUNT)]
+        sin_angles = [math.sin(i * ANGLE_STEP) for i in range(PARTICLE_COUNT)]
         dot_positions = [(math.cos(math.radians(angle)), math.sin(math.radians(angle))) 
                         for angle in range(0, 360, 45)]
         
+        # 预计算粒子颜色
+        primary_colors = colors['primary']
+        color_indices = [min(int((i / PARTICLE_COUNT) * len(primary_colors)), len(primary_colors)-1) 
+                        for i in range(PARTICLE_COUNT)]
+        
+        # 初始化particles列表
+        particles = []
+        
+        # 创建粒子
+        for i in range(PARTICLE_COUNT):
+            particles.append((
+                center_x,  # x
+                center_y,  # y
+                cos_angles[i],  # cos_angle
+                sin_angles[i],  # sin_angle
+                random.uniform(3.0, 4.0),  # speed
+                random.uniform(1.5, 2.5),  # size
+                primary_colors[color_indices[i]],  # color
+                random.uniform(0, TWO_PI)  # phase
+            ))
+        
+        # 缓存常用值
+        accent_colors = colors['accent']
+        text_offsets = [(-1,0), (1,0), (0,-1), (0,1)]  # 标准化文本偏移
+        
         def animate_milestone():
+            nonlocal particles
+            
             current_time = time.time()
             elapsed = current_time - start_time
+            
+            if elapsed >= 6.0:
+                return
+            
+            # 使用 array.array 替代普通数组
+            draw_buffer = [None] * (PARTICLE_COUNT * 3 + 20 + 1)
+            buffer_index = 0
+            
+            # 预计算常用值
+            fade_factor = max(0, 1.0 - elapsed / 6.0)
+            elapsed_3 = elapsed * 3
+            elapsed_2_5 = elapsed * 2.5
+            sin_elapsed_2_5 = math.sin(elapsed_2_5)
+            text_fade = min(1.0, elapsed / 0.5) * (1.0 - max(0, (elapsed - 2.5) / 0.5))
+            scale = (1 + sin_elapsed_2_5 * 0.03) * text_fade
+            base_scaled = int(base_size * scale)
+            
+            # 轨迹参数
+            trail_length = 12 * fade_factor
+            trail_factors = [0.7, 0.4, 0.1]
+            
+            # 使用 array.array 来存储粒子数据
+            new_particle_data = array.array('d', [0.0] * (len(particles) * 8))
+            particle_index = 0
+            
+            # 批量处理粒子, 每次4个
+            particle_count = len(particles)
+            i = 0
+            
+            # 创建局部变量引用以减少查找
+            create_line = canvas.create_line
+            create_text = canvas.create_text
+            create_oval = canvas.create_oval
+            
+            # 预计算常用值
+            wave_base = elapsed_3
+            move_base = fade_factor
+            
+            while i < particle_count - 3:
+                for j in range(4):
+                    x, y, cos_angle, sin_angle, speed, size, color, phase = particles[i+j]
+                    
+                    # 优化波动和移动计算
+                    wave = math.sin(wave_base + phase) * 0.2
+                    move_factor = move_base * (1 + wave)
+                    speed_factor = speed * move_factor
+                    move_x = cos_angle * speed_factor
+                    move_y = sin_angle * speed_factor
+                    new_x = x + move_x
+                    new_y = y + move_y
+                    
+                    # 预计算轨迹相关的值
+                    trail_size = size * fade_factor
+                    trail_cos = cos_angle * trail_length  
+                    trail_sin = sin_angle * trail_length
+                    trail_size_03 = trail_size * 0.3
+                    
+                    # 更新粒子数据
+                    idx = (particle_index + j) * 8
+                    color_num = float(int(color[1:], 16)) if isinstance(color, str) else float(color)
+                    temp_array = array.array('f', [new_x, new_y, cos_angle, sin_angle, speed, size, color_num, phase])
+                    for j in range(8):
+                        new_particle_data[idx + j] = temp_array[j]
+                    # 生成轨迹
+                    current_trail_size = trail_size
+                    for factor in trail_factors:
+                        if buffer_index < len(draw_buffer):
+                            trail_x = new_x - trail_cos * factor
+                            trail_y = new_y - trail_sin * factor
+                            draw_buffer[buffer_index] = ('line', (
+                                new_x, new_y, trail_x, trail_y,
+                                color, current_trail_size
+                            ))
+                            buffer_index += 1
+                            current_trail_size -= trail_size_03
+                    
+                particle_index += 4
+                i += 4
+            
+            # 处理剩余粒子
+            while i < particle_count:
+                x, y, cos_angle, sin_angle, speed, size, color, phase = particles[i]
+                wave = math.sin(wave_base + phase) * 0.2
+                move_factor = move_base * (1 + wave)
+                speed_factor = speed * move_factor
+                move_x = cos_angle * speed_factor
+                move_y = sin_angle * speed_factor
+                new_x = x + move_x
+                new_y = y + move_y
+                
+                idx = particle_index * 8
+                new_particle_data[idx:idx+8] = [new_x, new_y, cos_angle, sin_angle, speed, size, color, phase]
+                particle_index += 1
+                
+                trail_size = size * fade_factor
+                trail_cos = cos_angle * trail_length
+                trail_sin = sin_angle * trail_length
+                trail_size_03 = trail_size * 0.3
+                
+                current_trail_size = trail_size
+                for factor in trail_factors:
+                    if buffer_index < len(draw_buffer):
+                        trail_x = new_x - trail_cos * factor
+                        trail_y = new_y - trail_sin * factor
+                        draw_buffer[buffer_index] = ('line', (
+                            new_x, new_y, trail_x, trail_y,
+                            color, current_trail_size
+                        ))
+                        buffer_index += 1
+                        current_trail_size -= trail_size_03
+                i += 1
+            
+            # 更新粒子数据
+            particles[:] = zip(*[iter(new_particle_data)]*8)
+            
+            # 显示数字效果
+            if elapsed < 3.0:
+                text_str = str(score)
+                
+                # 预计算文本参数
+                text_params = [(i * 2 * scale,
+                                ("Arial Black", base_scaled + i * 2, "bold"),
+                                accent_colors[min(i, len(accent_colors)-1)])
+                            for i in range(3)]
+                
+                for offset, font, color in text_params:
+                    if buffer_index < len(draw_buffer) - 4:
+                        draw_buffer[buffer_index:buffer_index+4] = [
+                            ('text', (center_x - offset, center_y, text_str, font, color)),
+                            ('text', (center_x + offset, center_y, text_str, font, color)),
+                            ('text', (center_x, center_y - offset, text_str, font, color)),
+                            ('text', (center_x, center_y + offset, text_str, font, color))
+                        ]
+                        buffer_index += 4
+                
+                if buffer_index < len(draw_buffer):
+                    draw_buffer[buffer_index] = ('text', (
+                        center_x, center_y, text_str,
+                        ("Arial Black", base_scaled, "bold"),
+                        accent_colors[0]
+                    ))
+                    buffer_index += 1
+                
+                dot_radius = scale + scale
+                dist = base_size * 1.5
+                dot_coords = [(
+                    center_x + cos_angle * dist,
+                    center_y + sin_angle * dist
+                ) for cos_angle, sin_angle in dot_positions]
+                
+                for x, y in dot_coords:
+                    if buffer_index < len(draw_buffer):
+                        draw_buffer[buffer_index] = ('oval', (
+                            x - dot_radius,
+                            y - dot_radius,
+                            x + dot_radius,
+                            y + dot_radius,
+                            accent_colors[1]
+                        ))
+                        buffer_index += 1
+            
+            # 清除旧内容
             canvas.delete("milestone")
             
-            if elapsed < 6.0:
-                fade_factor = max(0, 1.0 - elapsed / 6.0)
-                
-                # 批量更新粒子
-                for p in particles:
-                    wave = math.sin(elapsed * 3 + p['phase']) * 0.2
-                    move_factor = (1 - elapsed/6) * (1 + wave)
-                    cos_angle = math.cos(p['angle'])
-                    sin_angle = math.sin(p['angle'])
-                    speed = p['speed']
-                    
-                    p['x'] += cos_angle * speed * move_factor
-                    p['y'] += sin_angle * speed * move_factor
-                    
-                    # 优化轨迹绘制
-                    trail_length = 12 * fade_factor
-                    x, y = p['x'], p['y']
-                    size = p['size']
-                    color = p['color']
-                    
-                    for t in range(3):
-                        trail_factor = 1 - t * 0.3
-                        canvas.create_line(
-                            x, y,
-                            x - cos_angle * trail_length * trail_factor,
-                            y - sin_angle * trail_length * trail_factor,
-                            fill=color,
-                            width=(size - t * 0.5) * fade_factor,
-                            capstyle=tk.ROUND,
-                            tags="milestone"
-                        )
-                
-                # 只在前3秒显示数字
-                if elapsed < 3.0:
-                    text_fade_factor = min(1.0, elapsed / 0.5) * (1.0 - max(0, (elapsed - 2.5) / 0.5))
-                    scale = (1 + math.sin(elapsed * 2.5) * 0.03) * text_fade_factor
-                    
-                    # 批量创建文字效果
-                    for i in range(3):
-                        offset = i * 2 * scale
-                        size = int(base_size * scale) + i * 2
-                        color = colors['accent'][min(i, len(colors['accent'])-1)]
-                        
-                        for dx, dy in ((-offset,0), (offset,0), (0,-offset), (0,offset)):
-                            canvas.create_text(
-                                center_x + dx, center_y + dy,
-                                text=str(score),
-                                font=("Arial Black", size, "bold"),
-                                fill=color,
-                                tags="milestone"
-                            )
-                    
-                    # 中心文本
-                    canvas.create_text(
-                        center_x, center_y,
-                        text=str(score),
-                        font=("Arial Black", int(base_size * scale), "bold"),
-                        fill=colors['accent'][0],
-                        tags="milestone"
-                    )
-                    
-                    # 批量创建装饰点
-                    dot_radius = 2 * scale
-                    for cos_angle, sin_angle in dot_positions:
-                        dist = base_size * 1.5
-                        x = center_x + cos_angle * dist
-                        y = center_y + sin_angle * dist
-                        canvas.create_oval(
-                            x - dot_radius, y - dot_radius,
-                            x + dot_radius, y + dot_radius,
-                            fill=colors['accent'][1],
-                            outline="",
-                            tags="milestone"
-                        )
-                
-                canvas.after(16, animate_milestone)
+            # 批量执行绘图命令
+            for i in range(buffer_index):
+                cmd_type, args = draw_buffer[i]
+                if cmd_type == 'line':
+                    create_line(*args[:4], fill=args[4] if isinstance(args[4], str) else f"#{int(args[4]):06x}", width=args[5],
+                                capstyle=tk.ROUND, tags="milestone")
+                elif cmd_type == 'text':
+                    create_text(*args[:2], text=args[2], font=args[3],
+                                fill=args[4] if isinstance(args[4], str) else f"#{int(args[4]):06x}", tags="milestone")
+                else:  # oval
+                    create_oval(*args[:4], fill=args[4] if isinstance(args[4], str) else f"#{int(args[4]):06x}",
+                                outline="", tags="milestone")
+            
+            canvas.after(16, animate_milestone)
         
         animate_milestone()
     
@@ -3159,6 +3482,19 @@ def start_main_game():
                         '#FF6EB4',  # 热粉红 - 可爱的树莓味
                         '#40E0D0'   # 绿松石色 - 清新的薄荷味
                         ]  # 添加彩虹颜色
+            ,
+            'star_candy': [
+                '#FF3366',  # 珊瑚玫瑰 - 充满活力不刺眼
+                '#00B8D4',  # 海洋蓝 - 清新深邃
+                '#7E57C2',  # 暮光紫 - 优雅神秘
+                '#26A69A',  # 青玉石 - 温和沉静
+                '#FF6B9C',  # 樱花粉 - 柔美甜蜜
+                '#5C6BC0',  # 星空蓝 - 深邃梦幻
+                '#2ECC71',  # 翡翠绿 - 生机盎然
+                '#9B59B6',  # 紫水晶 - 高贵典雅
+                '#16A085',  # 孔雀绿 - 沉稳优雅
+                '#F39C12'   # 琥珀金 - 温暖明亮
+            ]
         }
         
         # 不食物类型的粒子数量
@@ -3166,7 +3502,8 @@ def start_main_game():
             'normal': 15,   # 红色食物
             'golden': 25,   # 金色食物
             'special': 40 ,  # 紫色食物
-            'rainbow': 50  # 设置为50个粒子
+            'rainbow': 50 , # 设置为50个粒子
+            'star_candy': 40
         }
         
         colors = color_schemes[food_type]
@@ -3178,76 +3515,130 @@ def start_main_game():
         
         # 在这里添加里程碑检查
         score_ = current_score + food.properties[food_type]['score']  
-        if score_ // 20 > current_score // 20:  # 检查是否跨越了50的倍数
+        if score_ // 20 > current_score // 20:  # 检查是否跨越了20的倍数
             create_milestone_effect(score_)
             #print(score_)
     
     # 更新粒子效果
     def update_particles():
-        for particle in particles[:]:
-            if particle.alpha <= 0:
+        # 1. 缓存更多频繁使用的方法和属性
+        canvas_ref = canvas
+        create_oval = canvas_ref.create_oval
+        delete = canvas_ref.delete
+        sin = math.sin
+        max_min = lambda x, min_val, max_val: max(min_val, min(max_val, x))
+        
+        # 2. 预计算常量值并使用局部变量
+        current_time = time.time() * 10
+        STIPPLE_GRAY50 = 'gray50'
+        EMPTY_STR = ''
+        TRAIL_BATCH_SIZE = 4
+        
+        # 3. 使用数组替代列表来存储坐标
+        coords_array = array.array('f', [0] * 4)
+        
+        # 4. 预分配固定大小的缓冲区并重用
+        TRAIL_BUFFER_SIZE = 50
+        trail_buffer = [[0] * 4 for _ in range(TRAIL_BUFFER_SIZE)]
+        
+        # 5. 批量处理前预先计算总数
+        particle_count = len(particles)
+        active_particles = []
+        active_particles_append = active_particles.append  # 局部化方法调用
+        
+        # 6. 使用更高效的批处理逻辑
+        for i in range(0, particle_count, TRAIL_BATCH_SIZE):
+            batch_end = min(i + TRAIL_BATCH_SIZE, particle_count)
+            
+            for j in range(i, batch_end):
+                particle = particles[j]
+                
+                # 7. 快速路径检查
+                if particle.alpha <= 0:
+                    if particle.id:
+                        delete(particle.id)
+                        if particle.trail:
+                            delete(*particle.trail)
+                    continue
+                
+                # 8. 物理更新优化 - 减少乘法运算
+                drag = particle.drag
+                particle.speed_y = particle.speed_y * drag + particle.gravity * drag
+                particle.speed_x *= drag
+                
+                # 9. 位置更新 - 直接修改
+                old_x, old_y = particle.x, particle.y
+                particle.x += particle.speed_x
+                particle.y += particle.speed_y
+                
+                # 10. Alpha值更新优化
+                base_alpha = particle.base_alpha - 0.02
+                particle.base_alpha = base_alpha
+                flicker = sin(current_time + particle.flicker_offset) * 0.3 + 0.7
+                particle.alpha = max_min(base_alpha * flicker, 0, 1)
+                
+                # 11. 清理旧图形 - 批量操作
                 if particle.id:
-                    canvas.delete(particle.id)
-                    for trail_id in particle.trail:
-                        canvas.delete(trail_id)
-                particles.remove(particle)
-                continue
-            
-            # 更新速度和位置
-            particle.speed_y += particle.gravity
-            particle.speed_x *= particle.drag
-            particle.speed_y *= particle.drag
-            
-            # 保存前一位置用于绘制尾迹
-            old_x, old_y = particle.x, particle.y
-            particle.x += particle.speed_x
-            particle.y += particle.speed_y
-            
-            # 更新alpha值
-            particle.base_alpha -= 0.02
-            
-            # 闪烁效果
-            flicker = math.sin(time.time() * 10 + particle.flicker_offset) * 0.3 + 0.7
-            particle.alpha = max(0, min(1, particle.base_alpha * flicker))
-            
-            # 删除旧的粒子和尾迹
-            if particle.id:
-                canvas.delete(particle.id)
-            for trail_id in particle.trail:
-                canvas.delete(trail_id)
-            particle.trail = []
-            
-            # 绘制尾迹
-            if particle.base_alpha > 0.3:
-                trail_alpha = particle.alpha
-                for i in range(particle.trail_length):
-                    trail_x = old_x + (particle.x - old_x) * (i / particle.trail_length)
-                    trail_y = old_y + (particle.y - old_y) * (i / particle.trail_length)
-                    trail_size = particle.size * (0.5 + i / particle.trail_length) * particle.alpha
+                    delete(particle.id)
+                    if particle.trail:
+                        delete(*particle.trail)
+                        particle.trail = []
+                
+                # 12. 尾迹绘制优化
+                if base_alpha > 0.3:
+                    trail_alpha = particle.alpha
+                    dx = (particle.x - old_x) / particle.trail_length
+                    dy = (particle.y - old_y) / particle.trail_length
+                    trail_ids = []
+                    trail_ids_append = trail_ids.append
+                    base_size = particle.size * particle.alpha
                     
-                    trail_id = canvas.create_oval(
-                        trail_x - trail_size/2,
-                        trail_y - trail_size/2,
-                        trail_x + trail_size/2,
-                        trail_y + trail_size/2,
-                        fill=particle.color,
-                        stipple='gray50' if trail_alpha < 0.5 else '',
-                        width=0
-                    )
-                    particle.trail.append(trail_id)
-                    trail_alpha *= 0.6
-            
-            # 绘制主粒子
-            current_size = particle.size * particle.alpha
-            particle.id = canvas.create_oval(
-                particle.x - current_size/2,
-                particle.y - current_size/2,
-                particle.x + current_size/2,
-                particle.y + current_size/2,
-                fill=particle.color,
-                stipple='gray50' if particle.alpha < 0.5 else '',
-                width=0
-            )
+                    # 13. 尾迹批处理优化
+                    for k in range(0, particle.trail_length, TRAIL_BATCH_SIZE):
+                        batch = min(TRAIL_BATCH_SIZE, particle.trail_length - k)
+                        
+                        for m in range(batch):
+                            idx = k + m
+                            trail_x = old_x + dx * idx
+                            trail_y = old_y + dy * idx
+                            trail_size = base_size * (0.5 + idx / particle.trail_length)
+                            half_size = trail_size * 0.5
+                            
+                            coords = trail_buffer[idx]
+                            coords[0] = trail_x - half_size
+                            coords[1] = trail_y - half_size
+                            coords[2] = trail_x + half_size
+                            coords[3] = trail_y + half_size
+                            
+                            trail_ids_append(create_oval(
+                                *coords,
+                                fill=particle.color,
+                                stipple=STIPPLE_GRAY50 if trail_alpha < 0.5 else EMPTY_STR,
+                                width=0
+                            ))
+                            trail_alpha *= 0.6
+                    
+                    particle.trail = trail_ids
+                
+                # 14. 主粒子绘制优化
+                current_size = particle.size * particle.alpha
+                half_size = current_size * 0.5
+                coords_array[0] = particle.x - half_size
+                coords_array[1] = particle.y - half_size
+                coords_array[2] = particle.x + half_size
+                coords_array[3] = particle.y + half_size
+                
+                particle.id = create_oval(
+                    *coords_array,
+                    fill=particle.color,
+                    stipple=STIPPLE_GRAY50 if particle.alpha < 0.5 else EMPTY_STR,
+                    width=0
+                )
+                
+                active_particles_append(particle)
+        
+        # 15. 原地更新粒子列表
+        particles[:] = active_particles
     
     def toggle_pause():
         nonlocal game_paused
@@ -3257,7 +3648,7 @@ def start_main_game():
         canvas.delete("all")  # 清除所有内容
         canvas.create_image(0, 0, anchor=tk.NW, image=bg_image)
         draw_snake()
-        draw_food()
+        draw_food() 
         draw_score()
         
         if not game_paused:
@@ -3265,12 +3656,19 @@ def start_main_game():
             move_snake()
             pause_button.config(bg="#4CAF50")
         else:
-            pause_button.config(bg="#FF5722")
+            pause_button.config(bg="#9C27B0")
     
     def reset_game(event=None):
         nonlocal snake, snake_direction, food, game_running, current_score, game_paused, snake_speed
-        nonlocal color_chose
-        color_chose = random.randint(0, 2)
+        nonlocal color_chose,gradient_colors
+        gradient_colors = generate_gradient_colors(30)  # 30个渐变色
+
+        for after_id in window.tk.eval('after info').split():
+            try:
+                window.after_cancel(int(after_id))
+            except ValueError:
+                continue
+        color_chose = random.randint(0, 5)
         # 重置游戏状态
         snake = [(20, 20), (20, 40), (20, 60)]
         snake_direction = "Down"
@@ -3278,11 +3676,12 @@ def start_main_game():
         snake_speed = 100
         game_running = True
         game_paused = False
+        pause_button.config(bg="#4CAF50")
 
         # 根据不同的音乐模式处理音乐
         if music_mode == "conditional":
             # 随机选择新的背景音乐
-            bgm_name = random.choice(["background", "background2","background3"])  # 随机选择文件名
+            bgm_name = random.choice(["background", "background2","background3","background4","background5"])  # 随机选择文件名
             bgm_path = os.path.join(current_dir, "assets", "music", f"{bgm_name}.mp3")
             pygame.mixer.music.load(bgm_path)
             pygame.mixer.music.play(-1)
@@ -3392,28 +3791,48 @@ def start_main_game():
     
     # 然后创建按框架按钮
     button_frame = tk.Frame(window)
-    button_frame.pack(pady=5)
+    button_frame.pack(pady=0)
     
     pause_button = tk.Button(
-        button_frame, 
-        text="Pause/Continue", 
+        button_frame,
+        text="Pause/Continue",
         command=toggle_pause,
         width=12,
         bg="#4CAF50",
         fg="white",
-        font=("Helvetica", 10, "bold")
+        font=("Helvetica", 10, "bold"),
+        relief="flat",
+        borderwidth=0
     )
+    pause_button.configure(highlightthickness=0)
+    pause_button.bind('<Map>', lambda e: e.widget.configure(relief="flat"))
+    pause_button.configure(cursor="hand2")
+    pause_button.configure(bd=0, highlightthickness=0)
+    pause_button.configure(compound="center")
+    pause_button.configure(padx=10)
+    pause_button.configure(pady=7.499999999)
+    pause_button.configure(relief="ridge")
     pause_button.pack(side=tk.LEFT, padx=5)
     
     restart_button = tk.Button(
-        button_frame, 
-        text="Restart", 
+        button_frame,
+        text="Restart",
         command=reset_game,
         width=10,
         bg="#2196F3",
         fg="white",
-        font=("Helvetica", 10, "bold")
+        font=("Helvetica", 10, "bold"),
+        relief="flat", 
+        borderwidth=0
     )
+    restart_button.configure(highlightthickness=0)
+    restart_button.bind('<Map>', lambda e: e.widget.configure(relief="flat"))
+    restart_button.configure(cursor="hand2")
+    restart_button.configure(bd=0, highlightthickness=0)
+    restart_button.configure(compound="center")
+    restart_button.configure(padx=10)
+    restart_button.configure(pady=7.499999999)
+    restart_button.configure(relief="ridge")
     restart_button.pack(side=tk.LEFT, padx=5)
     
     # 添加返按钮
@@ -3421,80 +3840,135 @@ def start_main_game():
         """返回开始页面,带平滑淡出效果(0.8秒)"""
         global game_running, game_paused
         
-        # 暂停游戏状态
+        # 防止重复调用
+        if not hasattr(back_to_start, 'is_running'):
+            back_to_start.is_running = False
+        if back_to_start.is_running:
+            return
+        back_to_start.is_running = True
+            
+        # 立即暂停游戏状态和清除画布
         game_running = False
         game_paused = True
+        #canvas.delete("all")  # 清除所有画布内容
+        
+        # 取消所有pending的动画
+        try:
+            for after_id in window.tk.call('after', 'info'):
+                try:
+                    window.after_cancel(int(after_id))
+                except ValueError:
+                    continue
+        except Exception:
+            pass
         
         # 40步 × 20ms = 800ms (0.8秒)
-        # 使用更细腻的步进
         alphas = [i/40 for i in range(40, -1, -1)]  # 从1.0到0.0,共41步
         current_step = 0
         
         def fade_step():
             nonlocal current_step
             try:
+                if not window.winfo_exists():
+                    cleanup_and_restart()
+                    return
+                    
                 if current_step < len(alphas):
-                    # 设置当前透明度
-                    window.attributes('-alpha', max(0.05, alphas[current_step]))  # 防止完全透明
+                    # 保持平滑的淡出动画效果
+                    alpha = max(0.05, alphas[current_step])
+                    if window.winfo_exists():
+                        window.attributes('-alpha', alpha)
+                        # 每次更新时重绘窗口内容,避免残影
+                        window.update_idletasks()
                     current_step += 1
-                    # 20ms的更新间隔提供更平滑的效果
-                    window.after(20, fade_step)
+                    # 使用固定的20ms间隔保证动画流畅度
+                    if window.winfo_exists():
+                        window.after(20, fade_step)
                 else:
                     cleanup_and_restart()
-            except Exception:
-                # 如果出现任何错误,直接执行清理和重启
+            except Exception as e:
+                print(f"淡出动画出错: {str(e)}")
                 cleanup_and_restart()
         
         def cleanup_and_restart():
             try:
-                # 先停止所有音乐和音效
+                # 停止所有音频,使用淡出效果
                 try:
-                    sound_manager.cleanup()
-                except:
+                    if 'sound_manager' in globals():
+                        sound_manager.cleanup()
+                except Exception:
                     pass
-                try:    
-                    pygame.mixer.music.stop()
-                except:
+                    
+                try:
+                    if pygame.mixer.get_init():
+                        pygame.mixer.music.fadeout(200)  # 音乐淡出时间增加到200ms
+                        pygame.mixer.stop()
+                except Exception:
                     pass
                 
                 # 取消所有pending的after调用
                 try:
-                    for after_id in window.tk.call('after', 'info'):
-                        try:
-                            window.after_cancel(after_id)
-                        except:
-                            continue
-                except:
+                    if window.winfo_exists():
+                        for after_id in window.tk.call('after', 'info'):
+                            try:
+                                window.after_cancel(int(after_id))
+                            except (ValueError, tk.TclError):
+                                continue
+                except Exception:
                     pass
                     
-                # 销毁当前窗口
+                # 清理画布和窗口内容
                 try:
-                    window.destroy()
-                except:
+                    if window.winfo_exists():
+                        canvas.delete("all")
+                        # 强制更新画布避免残影
+                        canvas.update_idletasks()
+                        for widget in window.winfo_children():
+                            widget.destroy()
+                except Exception:
                     pass
                     
-                # 创建新的开始页面
+                # 优雅地销毁当前窗口
+                try:
+                    if window.winfo_exists():
+                        window.withdraw()  # 先隐藏窗口
+                        window.update()
+                        window.destroy()
+                except Exception:
+                    pass
+                    
+                # 重置运行状态标记    
+                back_to_start.is_running = False
+                    
+                # 创建新的开始页面,确保完全不透明且无残影
                 start_page = StartPage()
                 start_page.window.lift()
                 start_page.window.focus_force()
+                start_page.window.update_idletasks()  # 强制重绘
                 start_page.window.mainloop()
                 
             except Exception as e:
                 print(f"返回主菜单时发生错误: {str(e)}")
                 # 确保窗口被销毁
                 try:
-                    window.destroy()
-                except:
+                    if window.winfo_exists():
+                        window.destroy()
+                except Exception:
                     pass
+                # 重置运行状态标记    
+                back_to_start.is_running = False
                 # 重新创建开始页面    
                 start_page = StartPage()
                 start_page.window.mainloop()
         
         # 开始淡出动画
         try:
-            fade_step()
-        except:
-            # 如果淡出动画失败,直接执行清理和重启
+            if window.winfo_exists():
+                fade_step()  # 直接调用fade_step开始动画
+            else:
+                cleanup_and_restart()
+        except Exception as e:
+            print(f"启动淡出动画失败: {str(e)}")
             cleanup_and_restart()
     
     back_button = tk.Button(
@@ -3504,8 +3978,22 @@ def start_main_game():
         width=8,
         bg="#FF5722",
         fg="white",
-        font=("Helvetica", 10, "bold")
+        font=("Helvetica", 10, "bold"),
+        relief="flat",
+        borderwidth=0
     )
+    # 创建圆角效果
+    back_button.configure(highlightthickness=0)
+    back_button.bind('<Map>', lambda e: e.widget.configure(relief="flat"))
+    # 使用自定义样式类实现圆角
+    back_button.configure(cursor="hand2")
+    back_button.configure(bd=0, highlightthickness=0)
+    back_button.configure(compound="center")
+    # 应用圆角样式
+    back_button.configure(padx=10)
+    back_button.configure(pady=7.499999999)
+    back_button.configure(borderwidth=0)
+    back_button.configure(relief="ridge")
     back_button.pack(side=tk.LEFT, padx=5)
     back_button.bind("<Enter>", lambda e: back_button.config(bg="#FF8A65"))  # 浅橙色
     back_button.bind("<Leave>", lambda e: back_button.config(bg="#FF5722"))
@@ -3580,20 +4068,110 @@ def start_main_game():
                     "#00FFFF",  # 数据流束
                     "#00CCFF"   # 矩阵深邃
                 ]
+            ],
+            [   # 第一组：梦幻星空
+                [   # 星云幻彩
+                    "#FF99FF",  # 星云粉紫
+                    "#FF66FF",  # 星尘闪烁
+                    "#FF33FF",  # 星际光芒
+                    "#CC00FF"   # 深空魔力
+                ],
+                [   # 银河之流
+                    "#99FFFF",  # 银河起点
+                    "#66FFFF",  # 星河波动
+                    "#33FFFF",  # 星际之流
+                    "#00CCFF"   # 深空之渊
+                ],
+                [   # 恒星之光
+                    "#FFFF99",  # 恒星光辉
+                    "#FFFF66",  # 星光闪耀
+                    "#FFFF33",  # 光芒万丈
+                    "#FFCC00"   # 永恒之星
+                ]
+            ],
+            [   # 第二组：霓虹都市
+                [   # 霓虹之夜
+                    "#FF6699",  # 霓虹玫瑰
+                    "#FF3366",  # 城市脉动
+                    "#FF0033",  # 都市之心
+                    "#CC0033"   # 暗夜之魂
+                ],
+                [   # 电子光辉
+                    "#66FF99",  # 电子光芒
+                    "#33FF66",  # 数据流光
+                    "#00FF33",  # 矩阵能量
+                    "#00CC33"   # 科技深邃
+                ],
+                [   # 赛博之焰
+                    "#FF9966",  # 赛博烈焰
+                    "#FF6633",  # 数码燃烧
+                    "#FF3300",  # 信息之火
+                    "#CC3300"   # 核心之炎
+                ]
+            ],
+            [   # 第三组：量子领域
+                [   # 量子之舞
+                    "#9999FF",  # 量子起点
+                    "#6666FF",  # 虚拟律动
+                    "#3333FF",  # 数据洪流
+                    "#0000CC"   # 信息之海
+                ],
+                [   # 矩阵绿光
+                    "#99FF99",  # 矩阵光束
+                    "#66FF66",  # 程序之光
+                    "#33FF33",  # 代码闪耀
+                    "#00CC00"   # 系统之芯
+                ],
+                [   # 超维空间
+                    "#FF9999",  # 维度之门
+                    "#FF6666",  # 空间涟漪
+                    "#FF3333",  # 现实折射
+                    "#CC0000"   # 终极真理
+                ]
             ]
         ]
         
         colors = color_schemes[color_chose][INTP]  # 随机选择一种颜色方案
         
         # 先制蛇身
-        for i, segment in enumerate(snake[:-1]):  # 除了蛇头外的体
-            color = colors[i % len(colors)]  # 循环使用颜色
+        # 假设蛇身部分是由列表坐标组成，colors 是颜色列表
+        block_size = 20  # 每个蛇身块的大小
+        shadow_offset = 5  # 阴影偏移量
+
+        def draw_segment(canvas, segment, color):
+            """
+            绘制蛇身方块,终极优化版本
+            """
+            # 直接使用列表索引,避免任何变量赋值和计算
             canvas.create_rectangle(
-                segment[0], segment[1], 
-                segment[0] + 20, segment[1] + 20, 
+                segment[0], segment[1],
+                segment[0] + 20, segment[1] + 20,
                 fill=color,
-                outline=""  # 移除边框使外观更平滑
+                outline=""
             )
+
+        def draw_snake(canvas, snake, colors):
+            """
+            批量绘制整条蛇,终极优化版本
+            """
+            # 预计算颜色列表长度,避免重复计算
+            color_len = len(colors)
+            
+            # 使用列表推导式一次性生成所有绘图命令
+            commands = [(
+                segment[0], segment[1],
+                segment[0] + 20, segment[1] + 20,
+                colors[i % color_len]
+            ) for i, segment in enumerate(snake[:-1])]
+            
+            # 批量执行所有绘图命令
+            for x1, y1, x2, y2, color in commands:
+                canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
+
+        # 直接调用优化后的绘制函数
+        draw_snake(canvas, snake, colors)
+
+
         
         # 单独处理蛇头
         head = snake[-1]
@@ -3650,13 +4228,13 @@ def start_main_game():
                     'color': '#FF0033',  # 更鲜艳的红色
                     'score': 1,
                     'effect': None,
-                    'probability': 0.65
+                    'probability': 0.60
                 },
                 'golden': {
                     'color': '#FFD700',  # 更明亮的金色
                     'score': 3,
                     'effect': 'speed_up',
-                    'probability': 0.23
+                    'probability': 0.235
                 },
                 'special': {
                     'color': '#9400D3',  # 更深邃的紫色
@@ -3668,7 +4246,13 @@ def start_main_game():
                     'color': '#FF1493',
                     'score': 10,
                     'effect': 'rainbow',
-                    'probability': 0.05
+                    'probability': 0.055
+                },
+                'star_candy': {
+                    'color': '#FFD700',
+                    'score': 6,
+                    'effect': 'star_candy',
+                    'probability': 0.015
                 }
             }
             
@@ -3690,16 +4274,16 @@ def start_main_game():
         while new_position in snake:
             new_position = (random.randint(0, 19) * 20, random.randint(0, 19) * 20)
         
-        # 根据概率选择食物类型
-        rand = random.random()
-        if rand <= 0.62:
-            food_type = 'normal'
-        elif rand <= 0.85:
-            food_type = 'golden'
-        elif rand <= 0.95:  # 调整special食物概率为0.10
-            food_type = 'special'
-        else:  # 最后0.02的概率是彩色糖果
-            food_type = 'rainbow'
+        # 使用权重随机选择食物类型
+        food_types = ['normal', 'golden', 'special', 'rainbow', 'star_candy']
+        weights = [0.59, 0.240, 0.10, 0.055, 0.015]  # 概率权重
+        
+        # 使用random.choices进行加权随机选择
+        food_type = random.choices(
+            food_types,
+            weights=weights,
+            k=1
+        )[0]
         
         food = Food(new_position, food_type)
     
@@ -3730,7 +4314,7 @@ def start_main_game():
             
             return f'#{r:02x}{g:02x}{b:02x}'
         
-        # 获取当前颜
+        # 获取当前颜色
         current_color = adjust_color(base_color, glow)
         
         # 据食物类型绘制不同形状
@@ -3864,8 +4448,39 @@ def start_main_game():
                             
             # 更新颜色索引使糖果变色
             food.color_index = (food.color_index + 1) % len(food.rainbow_colors)
-    
-    # 在 start_main_game 函数中添加一个新的星星粒子类
+        elif food.food_type == 'star_candy':
+            center_x, center_y = x + 10, y + 10
+            size = 30
+            
+            # 计算五角星的点
+            points = []
+            num_points = 180  # 增加点的数量使曲线更平滑
+            for i in range(num_points):
+                # 使用参数方程计算花瓣曲线
+                angle = (2 * math.pi * i / num_points) - math.pi / 2
+                # r = a + b*sin(nθ) 其中:
+                # - a 是基础半径
+                # - b 是振幅
+                # - n 是花瓣数(这里是5)
+                r = (size/4) * (1 + math.sin(5 * angle))  # 调整size/4来控制整体大小
+                
+                points.extend([
+                    center_x + r * math.cos(angle),
+                    center_y + r * math.sin(angle)
+                ])
+            
+            t = time.time()
+            r = int(128 + 127 * math.sin(t * 2.0))
+            g = int(128 + 127 * math.sin(t * 2.0 + 2.0))
+            b = int(128 + 127 * math.sin(t * 2.0 + 4.0))
+            dynamic_color = f'#{r:02x}{g:02x}{b:02x}'
+            
+            # 绘制五角星
+            canvas.create_polygon(
+                points,
+                fill=dynamic_color,  # 使用动态颜色
+                outline=''
+            )
     class StarParticle:
         def __init__(self, x, y):
             self.x = x
@@ -3956,46 +4571,144 @@ def start_main_game():
             self.x = x
             self.y = y
             self.particles = []
+            # 使用更丰富的渐变色彩
+            self.colors = [
+                "#FFD700", "#FFA500", "#FF69B4", "#FF1493",  # 金色到粉色渐变
+                "#4169E1", "#1E90FF", "#00BFFF", "#87CEEB",  # 蓝色系渐变
+                "#32CD32", "#98FB98", "#00FF7F", "#3CB371",  # 绿色系渐变
+                "#FF4500", "#FF6347", "#FF7F50", "#FFA07A",  # 橙红系渐变
+                "#9370DB", "#8A2BE2", "#9400D3", "#BA55D3"   # 紫色系渐变
+            ]
             self.create_particles()
             
         def create_particles(self):
-            colors = ["#FFD700", "#FF69B4", "#4169E1", "#32CD32", "#FF4500", "#9370DB"]
-            for _ in range(100):
-                angle = random.uniform(0, 2 * math.pi)
-                speed = random.uniform(3, 8)
-                color = random.choice(colors)
-                self.particles.append({
-                    'x': self.x,
-                    'y': self.y,
-                    'dx': math.cos(angle) * speed,
-                    'dy': math.sin(angle) * speed,
-                    'color': color,
-                    'alpha': 1.0,
-                    'size': random.uniform(3, 6)
+            # 预计算一些常用值
+            TWO_PI = 2 * math.pi
+            base_x, base_y = self.x, self.y
+            
+            # 创建基础粒子参数
+            base_particle = {
+                'x': base_x,
+                'y': base_y,
+                'alpha': 1.0
+            }
+            
+            # 预计算角度和速度范围
+            main_angles = [random.uniform(0, TWO_PI) for _ in range(100)]
+            main_speeds = [random.uniform(4, 10) for _ in range(100)]
+            trail_angles = [random.uniform(0, TWO_PI) for _ in range(20)]
+            trail_speeds = [random.uniform(2, 5) for _ in range(20)]
+            
+            # 批量创建主要爆炸效果粒子
+            for angle, speed in zip(main_angles, main_speeds):
+                cos_angle = math.cos(angle)
+                sin_angle = math.sin(angle)
+                dx = cos_angle * speed
+                dy = sin_angle * speed
+                
+                particle = base_particle.copy()
+                particle.update({
+                    'dx': dx,
+                    'dy': dy,
+                    'color': random.choice(self.colors),
+                    'size': random.uniform(2, 6),
+                    'type': 'main',
+                    'sparkle_timer': random.uniform(0, math.pi)
                 })
+                self.particles.append(particle)
+            
+            # 批量创建星光轨迹粒子
+            for angle, speed in zip(trail_angles, trail_speeds):
+                cos_angle = math.cos(angle)
+                sin_angle = math.sin(angle)
+                dx = cos_angle * speed
+                dy = sin_angle * speed
+                
+                particle = base_particle.copy()
+                particle.update({
+                    'dx': dx,
+                    'dy': dy,
+                    'color': random.choice(self.colors),
+                    'size': random.uniform(3, 8),
+                    'type': 'trail',
+                    'trail': []
+                })
+                self.particles.append(particle)
 
         def update_and_draw(self, canvas):
-            alive = False
-            canvas.delete("celebration_firework")  # 只删除烟花相关的元素
+            canvas.delete("celebration_firework")
+            alive_particles = []
+            
+            # 预计算重力和透明度衰减
+            MAIN_GRAVITY = 0.15
+            TRAIL_GRAVITY = 0.08
+            MAIN_ALPHA_DECAY = 0.013
+            TRAIL_ALPHA_DECAY = 0.01
             
             for p in self.particles:
+                # 更新位置
                 p['x'] += p['dx']
                 p['y'] += p['dy']
-                p['dy'] += 0.15
-                p['alpha'] -= 0.01
                 
-                if p['alpha'] > 0:
-                    alive = True
-                    size = p['size'] * p['alpha']
-                    canvas.create_oval(
-                        p['x'] - size, p['y'] - size,
-                        p['x'] + size, p['y'] + size,
-                        fill=p['color'],
-                        outline='',
-                        tags="celebration_firework",
-                        stipple='gray50' if p['alpha'] < 0.5 else ''
-                    )
-            return alive
+                if p['type'] == 'main':
+                    p['dy'] += MAIN_GRAVITY
+                    p['alpha'] -= MAIN_ALPHA_DECAY
+                    p['sparkle_timer'] += 0.2
+                    
+                    if p['alpha'] > 0.1:
+                        alive_particles.append(p)
+                        # 一次性计算所有需要的值
+                        sparkle = math.sin(p['sparkle_timer']) * 0.3 + 0.7
+                        size = p['size'] * p['alpha'] * sparkle
+                        x, y = p['x'], p['y']
+                        size_1_5 = size * 1.5
+                        color = p['color']
+                        
+                        # 批量绘制
+                        canvas.create_oval(
+                            x - size_1_5, y - size_1_5,
+                            x + size_1_5, y + size_1_5,
+                            fill=color,
+                            outline='',
+                            tags="celebration_firework",
+                            stipple='gray25'
+                        )
+                        canvas.create_oval(
+                            x - size, y - size,
+                            x + size, y + size,
+                            fill=color,
+                            outline='white' if p['alpha'] > 0.8 else '',
+                            tags="celebration_firework"
+                        )
+                
+                elif p['type'] == 'trail':
+                    p['dy'] += TRAIL_GRAVITY
+                    p['alpha'] -= TRAIL_ALPHA_DECAY
+                    
+                    # 使用列表推导式更新轨迹
+                    p['trail'].append((p['x'], p['y']))
+                    if len(p['trail']) > 10:
+                        p['trail'] = p['trail'][-10:]
+                    
+                    if p['alpha'] > 0.1:
+                        alive_particles.append(p)
+                        trail_len = len(p['trail'])
+                        base_width = p['size'] * p['alpha']
+                        color = p['color']
+                        
+                        # 使用zip优化轨迹绘制
+                        for i, (p1, p2) in enumerate(zip(p['trail'][:-1], p['trail'][1:])):
+                            ratio = i / trail_len
+                            canvas.create_line(
+                                p1[0], p1[1], p2[0], p2[1],
+                                fill=color,
+                                width=base_width * ratio,
+                                tags="celebration_firework",
+                                capstyle=tk.ROUND
+                            )
+            
+            self.particles = alive_particles
+            return bool(alive_particles)
 
     def show_celebration_firework():
         firework = CelebrationFirework(200, 150)
@@ -4028,10 +4741,24 @@ def start_main_game():
         elif snake_direction == "Right":
             new_head = (head_x + 20, head_y)
             
+        # 处理穿墙逻辑
+        global Game_Mode
+        if Game_Mode == "Pass":  # 可以穿墙
+            # 如果超出边界,从对面出现
+            new_head = (
+                new_head[0] % 400,  # x坐标取余
+                new_head[1] % 400   # y坐标取余
+            )
+        
         # 检查是否撞到墙壁或自己
-        if (new_head in snake or 
-            new_head[0] < 0 or new_head[0] >= 400 or 
-            new_head[1] < 0 or new_head[1] >= 400):
+        if new_head in snake or (
+            Game_Mode == "Forbid" and (  # 不能穿墙时才检查边界
+                new_head[0] < 0 or 
+                new_head[0] >= 400 or 
+                new_head[1] < 0 or 
+                new_head[1] >= 400
+            )
+        ):
             game_running = False
             
             # 只在条件模式下停止音乐
@@ -4190,90 +4917,105 @@ def start_main_game():
                                     if frame < max_frames:
                                         progress = frame / max_frames
                                         
-                                        # 闪烁光晕效果
-                                        glow_radius = 50 + math.sin(frame * 0.1) * 5
+                                        # 预计算常用值
+                                        center_x, center_y = 200, 60
+                                        
+                                        # 闪烁光晕效果 - 使用预计算的sin值
+                                        sin_val = math.sin(frame * 0.1)
+                                        glow_radius = 50 + sin_val * 5
                                         glow_alpha = int(128 * (1 - progress))
                                         glow_color = f"#{glow_alpha:02x}FFD7"
-                                        canvas.create_oval(
-                                            200 - glow_radius, 60 - glow_radius,
-                                            200 + glow_radius, 60 + glow_radius,
-                                            fill=glow_color,
-                                            outline=""
-                                        )
                                         
-                                        # NEW RECORD 标题带渐变效果
+                                        # 批量创建图形
+                                        items = []
+                                        
+                                        # 光晕
+                                        items.append(('oval', (
+                                            center_x - glow_radius, center_y - glow_radius,
+                                            center_x + glow_radius, center_y + glow_radius,
+                                            glow_color, ""
+                                        )))
+                                        
+                                        # NEW RECORD 标题
                                         if frame > 20:
                                             fade_in = min(1.0, (frame - 20) / 30)
                                             text_color = f"#{int(255*fade_in):02x}FFFF"
-                                            # 添加描边效果
-                                            canvas.create_text(
-                                                200, 60,
-                                                text="NEW RECORD",
-                                                fill=text_color,
-                                                font=("Helvetica", 32, "bold"),
-                                                activefill="#FFD700"
-                                            )
+                                            items.append(('text', (
+                                                center_x, center_y, "NEW RECORD",
+                                                text_color, "#FFD700", ("Helvetica", 32, "bold")
+                                            )))
                                         
                                         # 动态分割线
                                         if frame > 40:
                                             line_progress = min(1.0, (frame - 40) / 40)
-                                            line_width = 160 * line_progress
-                                            # 添加双线效果
-                                            for offset in [-1, 1]:
-                                                canvas.create_line(
-                                                    200 - line_width/2, 85 + offset,
-                                                    200 + line_width/2, 85 + offset,
-                                                    fill="#FFD700",
-                                                    width=1,
-                                                    capstyle=tk.ROUND
-                                                )
+                                            half_width = 80 * line_progress  # 直接计算半宽度,避免重复计算
+                                            y_base = 85  # 基准y坐标
+                                            
+                                            # 一次性计算x坐标
+                                            x1 = center_x - half_width
+                                            x2 = center_x + half_width
+                                            
+                                            items.extend([
+                                                ('line', (x1, y_base - 1, x2, y_base - 1, "#FFD700", 1)),
+                                                ('line', (x1, y_base + 1, x2, y_base + 1, "#FFD700", 1))
+                                            ])
                                         
-                                        # 分数显示 - 带动画效果
+                                        # 分数显示
                                         if frame > 60:
+                                            # 预先计算常用值
                                             score_scale = min(1.0, (frame - 60) / 20)
-                                            font_size = int(42 * score_scale)  # 进一步增大字体
+                                            font_size = int(42 * score_scale)
+                                            score_text = f"{current_score:,}"
+                                            font = ("Arial Black", font_size, "bold")
+                                            y_pos = 120
                                             
-                                            # 添加多层阴影效果增强立体感
-                                            shadow_offsets = [(2,2), (1,1), (-1,-1), (-2,-2)]
-                                            for offset_x, offset_y in shadow_offsets:
-                                                canvas.create_text(
-                                                    200 + offset_x, 120 + offset_y,
-                                                    text=f"{current_score:,}",
-                                                    fill="#000000",
-                                                    font=("Arial Black", font_size, "bold")  # 使用更粗的字体
-                                                )
+                                            # 阴影偏移量预先定义
+                                            shadow_offsets = ((2,2), (1,1), (-1,-1), (-2,-2))
                                             
-                                            # 白色边框增加对比度
-                                            canvas.create_text(
-                                                200, 120,
-                                                text=f"{current_score:,}",
-                                                fill="#FFFFFF",
-                                                font=("Arial Black", font_size, "bold")
-                                            )
+                                            # 批量添加阴影文本
+                                            shadow_items = [('text', (
+                                                center_x + offset_x, y_pos + offset_y,
+                                                score_text, "#000000", None, font
+                                            )) for offset_x, offset_y in shadow_offsets]
+                                            items.extend(shadow_items)
                                             
-                                            # 主体数字
-                                            canvas.create_text(
-                                                200, 120,
-                                                text=f"{current_score:,}",
-                                                fill="#FFD700",
-                                                font=("Arial Black", font_size, "bold")
-                                            )
+                                            # 添加主体文本
+                                            text_items = [
+                                                ('text', (center_x, y_pos, score_text, color, None, font))
+                                                for color in ("#FFFFFF", "#FFD700")
+                                            ]
+                                            items.extend(text_items)
                                             
-                                            # 添加闪光粒子效果
+                                            # 每4帧添加一次粒子
                                             if frame % 4 == 0:
-                                                particle_x = random.choice([random.randint(120,160), random.randint(240,280)])
-                                                particle_y = 120 + random.randint(-20, 20)
+                                                # 预定义x轴范围
+                                                x_ranges = [(120,160), (240,280)]
+                                                particle_x = random.randint(*random.choice(x_ranges))
+                                                particle_y = y_pos + random.randint(-20, 20)
                                                 particle_size = random.randint(2, 4)
-                                                canvas.create_oval(
+                                                
+                                                # 计算粒子坐标
+                                                p_coords = (
                                                     particle_x - particle_size,
                                                     particle_y - particle_size,
                                                     particle_x + particle_size,
-                                                    particle_y + particle_size,
-                                                    fill="#FFFACD",
-                                                    outline=""
+                                                    particle_y + particle_size
                                                 )
+                                                items.append(('oval', (*p_coords, "#FFFACD", "")))
                                         
-                                        window.after(16, lambda: create_elegant_effect(frame + 1))
+                                        # 批量绘制所有图形
+                                        for item_type, args in items:
+                                            if item_type == 'oval':
+                                                x1,y1,x2,y2,fill,outline = args
+                                                canvas.create_oval(x1,y1,x2,y2,fill=fill,outline=outline)
+                                            elif item_type == 'text':
+                                                x,y,text,fill,activefill,font = args
+                                                canvas.create_text(x,y,text=text,fill=fill,activefill=activefill,font=font)
+                                            elif item_type == 'line':
+                                                x1,y1,x2,y2,fill,width = args
+                                                canvas.create_line(x1,y1,x2,y2,fill=fill,width=width,capstyle=tk.ROUND)
+                                        
+                                        window.after(20, lambda: create_elegant_effect(frame + 1))
                                 
                                 # 启动优雅特效
                                 create_elegant_effect()
@@ -4294,8 +5036,11 @@ def start_main_game():
                                     except:
                                         pass
                                     
-                                    # 2秒后创建下一个烟花，直到达到3次
-                                    window.after(2000, lambda: show_celebration(count + 1))
+                                    # 第一次和第二次间隔1.8s,第二次和第三次间隔3s
+                                    if count == 0:
+                                        window.after(1800, lambda: show_celebration(count + 1))
+                                    elif count == 1:
+                                        window.after(3100, lambda: show_celebration(count + 1))
                                 
                                 # 开始第一次烟花
                                 show_celebration()
@@ -4379,17 +5124,53 @@ def start_main_game():
             
             effect = food.properties[food.food_type]['effect']
             if effect == 'speed_up':
-                snake_speed = max(60, snake_speed - 10)
+                snake_speed = max(75, snake_speed - 10)
                 show_effect_message('speed_up')
             elif effect == 'slow_down':
                 snake_speed = min(150, snake_speed + 10)
                 show_effect_message('slow_down')
             elif effect == 'rainbow':
+                snake_speed = min(150, snake_speed + 5)
                 nr = color_chose
-                color_chose = random.randint(0, 2)  # 随机切换颜色方案
-                print("COLORRRRRRRR")
+                color_chose = random.randint(0, 5)  # 随机切换颜色方案
+                #print("COLORRRRRRRR")
                 while nr == color_chose:
-                    color_chose = random.randint(0, 2)  # 随机切换颜色方案
+                    color_chose = random.randint(0, 5)  # 随机切换颜色方案
+            elif effect == 'star_candy':
+                try:
+                    nonlocal background_images, selected_bg, bg_image_path, bg_image, image, canvas
+                    
+                    # 保存当前背景以避免重复选择
+                    current_bg = selected_bg
+                    available_bgs = [bg for bg in background_images if bg != current_bg]
+                    
+                    # 从剩余背景中随机选择
+                    selected_bg = random.choice(available_bgs)
+                    bg_image_path = os.path.join(current_dir, "assets", "images", selected_bg)
+                    
+                    # 使用 with 语句确保文件正确关闭
+                    with Image.open(bg_image_path) as img:
+                        # 使用 LANCZOS 重采样进行高质量缩放
+                        image = img.resize((400, 400), Image.LANCZOS)
+                        bg_image = ImageTk.PhotoImage(image)
+                    
+                    # 清除画布并设置新背景
+                    canvas.delete("all")
+                    canvas.create_image(0, 0, anchor=tk.NW, image=bg_image)
+                    
+                    # 保持对背景图片的引用以防止垃圾回收
+                    canvas.bg_image = bg_image
+                    
+                    # 播放背景切换音效（如果有）
+                    try:
+                        sound_manager.play('background_change')
+                    except:
+                        pass
+                        
+                except Exception as e:
+                    print(f"背景切换失败: {str(e)}")
+                    # 如果切换失败，保持原有背景
+                    canvas.create_image(0, 0, anchor=tk.NW, image=canvas.bg_image)
             generate_food()
         else:
             snake.pop(0)
@@ -4404,7 +5185,7 @@ def start_main_game():
         # 更新粒子效果
         update_particles()
         
-        # 使用单一计时器和帧计数实现平滑移动
+        #使用单一计时器和帧计数实现平滑移动
         if game_running:
             step = snake_speed // 20  # 从16份改为20份，追求极致平滑
             window.after(step, lambda: 
@@ -4426,6 +5207,7 @@ def start_main_game():
                                                                             window.after(step, lambda:
                                                                                 window.after(step, lambda:
                                                                                     window.after(step, move_snake)))))))))))))))))))
+
     
     def change_direction(new_direction):
         nonlocal snake_direction
@@ -4441,21 +5223,39 @@ def start_main_game():
     def draw_score():
         snake_length = len(snake)
         
-        # 显示Length
-        canvas.create_text(
-            50, 20,
-            text=f"Length: {snake_length}",
-            fill="#FFD700",  # 金色
-            font=("Impact", 16)  # 使用Impact字体，与BEST SCORE保持一致
-        )
+        # 使用时间创建微妙的颜色渐变
+        t = time.time()
+        # 预计算一些常用值
+        sin_value = math.sin(t * 2)
+        color_value = int(243 + 12 * sin_value)  # 减小渐变范围到235-255
+        color_value_80 = int(color_value * 0.8)
+        dynamic_gold = f"#{color_value:02x}{color_value_80:02x}00"
         
-        # 显示Score
-        canvas.create_text(
-            180, 20,
-            text=f"Score: {current_score}",
-            fill="#FFD700",  # 金色
-            font=("Impact", 16)  # 使用Impact字体，与BEST SCORE保持一致
-        )
+        # 复用文本内容
+        length_text = f"Length: {snake_length}"
+        score_text = f"Score: {current_score}"
+        
+        # 使用常量减少重复创建
+        FONT = ("Impact", 16)
+        BLACK = "black"
+        
+        # 显示Length和Score,添加柔和阴影
+        for text, x in ((length_text, 50), (score_text, 180)):
+            # 阴影
+            canvas.create_text(
+                x+1, 21,
+                text=text,
+                fill=BLACK,
+                font=FONT,
+                state="disabled"
+            )
+            # 主文本
+            canvas.create_text(
+                x, 20,
+                text=text,
+                fill=dynamic_gold,
+                font=FONT
+            )
         
         # 如果戏暂停，显示停文本
         if game_paused:
@@ -4512,7 +5312,47 @@ def start_main_game():
         )
         # 2秒后删消息
         window.after(2000, lambda: canvas.delete("effect_message"))
-    
+    def handle_click(event):
+        """处理鼠标点击改变方向"""
+        nonlocal snake_direction
+        
+        if game_paused:
+            return
+            
+        head_x, head_y = snake[-1]  # 修正:使用snake[-1]获取蛇头
+        # 每个蛇身块是20x20,所以中心点要加10
+        head_center_x = head_x + 10  # 20/2 = 10
+        head_center_y = head_y + 10  # 20/2 = 10
+        
+        # 计算鼠标点击位置相对于蛇头中心点的位置
+        dx = event.x - head_center_x
+        dy = event.y - head_center_y
+        
+        # 根据当前方向判断蛇头两侧
+        if snake_direction in ["Left", "Right"]:
+            # 当前水平移动时,只考虑上下
+            # 使用相对于蛇头中心的位置判断
+            new_direction = "Up" if dy < 0 else "Down"
+        else:
+            # 当前垂直移动时,只考虑左右
+            # 使用相对于蛇头中心的位置判断
+            new_direction = "Left" if dx < 0 else "Right"
+        
+        # 防止反向移动
+        opposite_directions = {
+            "Left": "Right",
+            "Right": "Left", 
+            "Up": "Down",
+            "Down": "Up"
+        }
+        
+        if new_direction != opposite_directions.get(snake_direction):
+            snake_direction = new_direction
+            
+    window.bind('<Button-1>', handle_click)
+    window.bind('<Button-2>', handle_click)
+    window.bind('<Button-3>', handle_click)
+
     # 添加新的按键绑定
     window.bind("<Up>", lambda event: change_direction("Up"))
     window.bind("<w>", lambda event: change_direction("Up"))
@@ -4582,7 +5422,7 @@ if __name__ == "__main__":
     initialize_high_score_file()  # 确保文件存在
     start_page = StartPage()
     start_page.window.mainloop()
-
+'''
 class FrameController:
     def __init__(self, target_fps=60):
         self.target_fps = target_fps
@@ -4592,7 +5432,7 @@ class FrameController:
     def begin_frame(self):
         """开始新一帧，返回距离上一帧的时间差"""
         current_time = time.time()
-        dt = current_time - self.last_time
+        dt = current_time - self.last_time   
         self.last_time = current_time
         return dt
     
@@ -4604,3 +5444,4 @@ class FrameController:
 
 # 在主循环中使用
 frame_controller = FrameController(60)
+'''
