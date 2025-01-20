@@ -200,7 +200,7 @@ class TransparentWindow:
         
         # Set window size and position
         window_width = 480
-        window_height = 870
+        window_height = 880
         screen_width = parent.winfo_screenwidth()
         screen_height = parent.winfo_screenheight()
         x = (screen_width - window_width) // 2
@@ -286,7 +286,10 @@ class TransparentWindow:
             highlightthickness=0
         )
         self.deco_canvas.pack(side=tk.LEFT)
-        
+        self.window.bind('<Left>', lambda e: self._move_window('left'))
+        self.window.bind('<Right>', lambda e: self._move_window('right'))
+        self.window.bind('<Up>', lambda e: self._move_window('up'))
+        self.window.bind('<Down>', lambda e: self._move_window('down'))
         # 创建能量脉冲动画
         def animate_pulse():
             self.deco_canvas.delete('all')
@@ -342,7 +345,8 @@ class TransparentWindow:
                 "Regular Food: Red, +1 point",
                 "Golden Food: Yellow, +3 points, Speed boost effect",
                 "Purple Food: Purple, +5 points, Slow down effect",
-                "Mana Food: Gradient color, +10 points, Special effect"
+                "Mana Food: Gradient color, +10 points, Special effect",
+                "Flower Food: Changing color, +6 points, Switch background"
             ]),
             ("Game Features", [
                 "Scoring System: Different foods give different points",
@@ -491,7 +495,36 @@ class TransparentWindow:
         x = self.window.winfo_x() + deltax
         y = self.window.winfo_y() + deltay
         self.window.geometry(f"+{x}+{y}")
-    
+    def _move_window(self, direction):
+        """移动窗口"""
+        print(f"Moving window: {direction}")  # 添加调试输出
+        x = self.window.winfo_x()
+        y = self.window.winfo_y()
+        
+        step = 20  # 每次移动的像素数
+        
+        if direction == 'left':
+            x -= step
+        elif direction == 'right':
+            x += step
+        elif direction == 'up':
+            y -= step
+        elif direction == 'down':
+            y += step
+        
+        # 确保窗口不会移出屏幕
+        screen_width = self.window.winfo_screenwidth()
+        screen_height = self.window.winfo_screenheight()
+        window_width = self.window.winfo_width()
+        window_height = self.window.winfo_height()
+        
+        # 限制x坐标范围
+        x = max(0, min(x, screen_width - window_width))
+        # 限制y坐标范围
+        y = max(0, min(y, screen_height - window_height))
+        
+        print(f"New position: x={x}, y={y}")  # 添加调试输出
+        self.window.geometry(f"+{x}+{y}")
 # 创建开始页面类
 class StartPage:
     def show_transparent_window(self, event):
