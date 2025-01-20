@@ -345,8 +345,8 @@ class TransparentWindow:
                 "Regular Food: Red, +1 point",
                 "Golden Food: Yellow, +3 points, Speed boost effect",
                 "Purple Food: Purple, +5 points, Slow down effect",
-                "Mana Food: Gradient color, +10 points, Special effect",
-                "Flower Food: Changing color, +6 points, Switch background"
+                "Mana Food: Gradient, +10 points, Special effect",
+                "Flower Food: Changing, +6 points, Switch background"
             ]),
             ("Game Features", [
                 "Scoring System: Different foods give different points",
