@@ -2547,7 +2547,7 @@ class StartPage:
 def start_main_game():
     
     color_chose = random.randint(3, 5)
-    
+    trail_windows = []  # 用于存储所有尾痕窗口
     # 创建音效管理器
     sound_manager = SoundManager()
     sound_manager.enabled = StartPage.music_mode.get() != "off"
@@ -2645,7 +2645,10 @@ def start_main_game():
     except Exception as e:
         print(f"创建主窗口失败: {e}")
         sys.exit(1)
-         
+    window.bind("<Left>", lambda event: change_direction("Left"))
+    window.bind("<Right>", lambda event: change_direction("Right"))
+    window.bind("<Up>", lambda event: change_direction("Up"))
+    window.bind("<Down>", lambda event: change_direction("Down"))
     def move_window(direction, fast_mode=False):
         """移动窗口位置"""
         x = window.winfo_x()
@@ -2671,11 +2674,12 @@ def start_main_game():
         y = max(0, min(y, screen_height - window_height))
 
         # 创建轨迹特效
+        nonlocal trail_windows
         trail = tk.Toplevel(window)
         trail.overrideredirect(True)
         trail.attributes('-alpha', 0.4)
         trail.lift()
-        
+        trail_windows.append(trail)  # 将新创建的尾痕窗口添加到列表中
         # 设置轨迹窗口位置和大小
         size = 10
         if direction in ["Left", "Right"]:
@@ -2707,7 +2711,6 @@ def start_main_game():
         else:
             color1 = "#4169E1"  # 皇家蓝
             color2 = "#87CEEB"  # 天蓝色
-            
         # 创建渐变效果
         def gradient_color(color1, color2, ratio):
             """计算渐变颜色"""
@@ -2740,7 +2743,14 @@ def start_main_game():
         trail.after(10, fade_out)
         
         window.geometry(f"+{x}+{y}")
-    
+    def clear_trails():
+        nonlocal trail_windows
+        for trail in trail_windows:
+            try:
+                trail.destroy()
+            except:
+                pass
+        trail_windows.clear()
     window.bind("<Control-Left>", lambda e: move_window("Left"))
     window.bind("<Control-Right>", lambda e: move_window("Right")) 
     window.bind("<Control-Up>", lambda e: move_window("Up"))
@@ -3693,7 +3703,7 @@ def start_main_game():
         game_running = True
         game_paused = False
         pause_button.config(bg="#4CAF50")
-
+        clear_trails()  # 清除所有尾痕
         # 根据不同的音乐模式处理音乐
         if music_mode == "conditional":
             # 随机选择新的背景音乐
@@ -3712,7 +3722,9 @@ def start_main_game():
                     border_animation_ids.append(after_id)
                     continue
                 window.after_cancel(after_id)
-            
+            for widget in window.winfo_children():
+                if isinstance(widget, tk.Toplevel):
+                    widget.destroy()
             canvas.delete("all")  # 清除所有画布元素
             canvas.create_image(0, 0, anchor=tk.NW, image=bg_image)  # 重新创建背景
         
@@ -3720,7 +3732,14 @@ def start_main_game():
         stop_animations()
         
         canvas.create_image(0, 0, anchor=tk.NW, image=bg_image)
-        
+        window.unbind("<Left>")
+        window.unbind("<Right>") 
+        window.unbind("<Up>")
+        window.unbind("<Down>")
+        window.bind("<Left>", lambda event: change_direction("Left"))
+        window.bind("<Right>", lambda event: change_direction("Right"))
+        window.bind("<Up>", lambda event: change_direction("Up"))
+        window.bind("<Down>", lambda event: change_direction("Down"))
         # 添加更优雅的圆环特效
         def create_elegant_ripple(step=0, max_steps=30):
             if step < max_steps:
@@ -5101,7 +5120,14 @@ def start_main_game():
                                 
                                 # 降低刷新率到10fps以进一步减少资源占用
                                 window.after(100, blink_game_over_text)  # 约10fps
-                            
+                            window.unbind("<Left>")
+                            window.unbind("<Right>")
+                            window.unbind("<Up>")
+                            window.unbind("<Down>")
+                            window.bind("<Left>", lambda e: move_window("Left"))
+                            window.bind("<Right>", lambda e: move_window("Right")) 
+                            window.bind("<Up>", lambda e: move_window("Up"))
+                            window.bind("<Down>", lambda e: move_window("Down"))
                             # 开始闪烁动画
                             blink_game_over_text()
                     
