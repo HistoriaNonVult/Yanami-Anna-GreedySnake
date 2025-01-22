@@ -4863,18 +4863,26 @@ def start_main_game():
                         draw_snake()
                         
                         # 显示长度和分数
-                        canvas.create_text(
-                            50, 20,
-                            text=f"Length: {len(snake)}",
-                            fill="#FFD700",
-                            font=("Impact", 16)
-                        )
-                        canvas.create_text(
-                            180, 20,
-                            text=f"Score: {current_score}",
-                            fill="#FFD700",
-                            font=("Impact", 16)
-                        )
+                        def create_glowing_text(x, y, text, main_color="#FFD700", glow_color="#FFA500"):
+                            # 外发光效果
+                            for offset in range(1, 3):
+                                canvas.create_text(
+                                    x, y,
+                                    text=text,
+                                    fill=glow_color,
+                                    font=("Impact", 16),
+                                    activefill="#FFFFFF"
+                                )
+                            # 主文本
+                            canvas.create_text(
+                                x, y,
+                                text=text,
+                                fill=main_color,
+                                font=("Impact", 16)
+                            )
+                            
+                        create_glowing_text(50, 20, f"Length: {len(snake)}")
+                        create_glowing_text(180, 20, f"Score: {current_score}")
                         
                         new_particles = []
                         for p in death_particles:
