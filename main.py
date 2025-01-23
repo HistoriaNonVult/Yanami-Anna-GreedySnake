@@ -4222,36 +4222,38 @@ def start_main_game():
         
         # 在蛇头上添加眼睛
         head = snake[-1]  # 蛇头是列表的最后一个元素
-        
-        # 根据的方向调整眼睛位置
+        # 根据蛇的方向调整眼睛位置
         if snake_direction == "Right":
             # 右眼
-            canvas.create_oval(head[0] + 12, head[1] + 5, head[0] + 16, head[1] + 8, fill="white")
-            canvas.create_oval(head[0] + 13, head[1] + 6, head[0] + 15, head[1] + 7, fill="black")
+            canvas.create_oval(head[0] + 12, head[1] + 5, head[0] + 16, head[1] + 8, fill="#F8F8F8")
+            canvas.create_oval(head[0] + 13, head[1] + 6, head[0] + 15, head[1] + 7, fill="#2196F3")
             # 左眼
-            canvas.create_oval(head[0] + 12, head[1] + 12, head[0] + 16, head[1] + 15, fill="white")
-            canvas.create_oval(head[0] + 13, head[1] + 13, head[0] + 15, head[1] + 14, fill="black")
+            canvas.create_oval(head[0] + 12, head[1] + 12, head[0] + 16, head[1] + 15, fill="#F8F8F8")
+            canvas.create_oval(head[0] + 13, head[1] + 13, head[0] + 15, head[1] + 14, fill="#2196F3")
+            
         elif snake_direction == "Left":
-            # 眼
-            canvas.create_oval(head[0] + 4, head[1] + 5, head[0] + 8, head[1] + 8, fill="white")
-            canvas.create_oval(head[0] + 5, head[1] + 6, head[0] + 7, head[1] + 7, fill="black")
+            # 右眼
+            canvas.create_oval(head[0] + 4, head[1] + 5, head[0] + 8, head[1] + 8, fill="#F8F8F8")
+            canvas.create_oval(head[0] + 5, head[1] + 6, head[0] + 7, head[1] + 7, fill="#2196F3")
             # 左眼
-            canvas.create_oval(head[0] + 4, head[1] + 12, head[0] + 8, head[1] + 15, fill="white")
-            canvas.create_oval(head[0] + 5, head[1] + 13, head[0] + 7, head[1] + 14, fill="black")
+            canvas.create_oval(head[0] + 4, head[1] + 12, head[0] + 8, head[1] + 15, fill="#F8F8F8")
+            canvas.create_oval(head[0] + 5, head[1] + 13, head[0] + 7, head[1] + 14, fill="#2196F3")
+            
         elif snake_direction == "Up":
             # 右眼
-            canvas.create_oval(head[0] + 5, head[1] + 4, head[0] + 8, head[1] + 8, fill="white")
-            canvas.create_oval(head[0] + 6, head[1] + 5, head[0] + 7, head[1] + 7, fill="black")
+            canvas.create_oval(head[0] + 5, head[1] + 4, head[0] + 8, head[1] + 8, fill="#F8F8F8")
+            canvas.create_oval(head[0] + 6, head[1] + 5, head[0] + 7, head[1] + 7, fill="#2196F3")
             # 左眼
-            canvas.create_oval(head[0] + 12, head[1] + 4, head[0] + 15, head[1] + 8, fill="white")
-            canvas.create_oval(head[0] + 13, head[1] + 5, head[0] + 14, head[1] + 7, fill="black")
+            canvas.create_oval(head[0] + 12, head[1] + 4, head[0] + 15, head[1] + 8, fill="#F8F8F8")
+            canvas.create_oval(head[0] + 13, head[1] + 5, head[0] + 14, head[1] + 7, fill="#2196F3")
+            
         else:  # Down
             # 右眼
-            canvas.create_oval(head[0] + 5, head[1] + 12, head[0] + 8, head[1] + 16, fill="white")
-            canvas.create_oval(head[0] + 6, head[1] + 13, head[0] + 7, head[1] + 15, fill="black")
+            canvas.create_oval(head[0] + 5, head[1] + 12, head[0] + 8, head[1] + 16, fill="#F8F8F8")
+            canvas.create_oval(head[0] + 6, head[1] + 13, head[0] + 7, head[1] + 15, fill="#2196F3")
             # 左眼
-            canvas.create_oval(head[0] + 12, head[1] + 12, head[0] + 15, head[1] + 16, fill="white")
-            canvas.create_oval(head[0] + 13, head[1] + 13, head[0] + 14, head[1] + 15, fill="black")
+            canvas.create_oval(head[0] + 12, head[1] + 12, head[0] + 15, head[1] + 16, fill="#F8F8F8")
+            canvas.create_oval(head[0] + 13, head[1] + 13, head[0] + 14, head[1] + 15, fill="#2196F3")
     
     class Food:
         def __init__(self, position, food_type):
@@ -5174,11 +5176,11 @@ def start_main_game():
             
             effect = food.properties[food.food_type]['effect']
             if effect == 'speed_up':
-                snake_speed = max(77, snake_speed - 10)
-                show_effect_message('speed_up')
+                snake_speed = max(78, snake_speed - 10)
+                #show_effect_message('speed_up')
             elif effect == 'slow_down':
                 snake_speed = min(150, snake_speed + 10)
-                show_effect_message('slow_down')
+                #show_effect_message('slow_down')
             elif effect == 'rainbow':
                 snake_speed = min(150, snake_speed + 5)
                 nr = color_chose
@@ -5345,24 +5347,6 @@ def start_main_game():
             
             # 开始闪烁动画
             blink_text()
-    
-    def show_effect_message(effect):
-        if effect == 'speed_up':
-            message = "Speed Up!"
-            color = "#FFD700"
-        elif effect == 'slow_down':
-            message = "Slow Down!"
-            color = "#9C27B0"
-        
-        canvas.create_text(
-            200, 100,
-            text=message,
-            fill=color,
-            font=("Arial", 20, "bold"),
-            tags="effect_message"
-        )
-        # 2秒后删消息
-        window.after(2000, lambda: canvas.delete("effect_message"))
     def handle_click(event):
         """处理鼠标点击改变方向"""
         nonlocal snake_direction
