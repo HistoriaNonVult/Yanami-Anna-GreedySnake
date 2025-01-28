@@ -1,0 +1,19 @@
+# Python编译缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE配置
+.idea/
+.vscode/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 本地配置和临时文件
+*.log
+temp/
+tmp/
