@@ -27,7 +27,7 @@ WINDOW_STYLES = {
     9: "optimised",  # 优化风格
     10: "light"      # 浅色主题
 }
-# For YOLO!!!!!
+# For YOLO!!!!!!
 # 初始化 pygame
 # 在初始化 pygame 时设置更高的音频质量
 pygame.mixer.pre_init(44100, -16, 2, 2048)  # 设置更高的采样率和缓冲区
