@@ -13,6 +13,8 @@ import ctypes
 import pywinstyles  # 导入窗口样式库
 import array
 from concurrent.futures import ThreadPoolExecutor
+last_direction_change_time = 0
+direction_change_interval = 0.10  # 0.05秒的时间间隔
 # 窗口样式对照表
 WINDOW_STYLES = {
     0: "dark",       # 深色主题
@@ -5263,15 +5265,27 @@ def start_main_game():
 
     
     def change_direction(new_direction):
+        global last_direction_change_time
+        current_time = time.time()
+        print(current_time - last_direction_change_time)
+        # 检查时间间隔
+        if current_time - last_direction_change_time < direction_change_interval:
+            return  # 如果时间间隔未到，则不改变方向
         nonlocal snake_direction
+        if new_direction == snake_direction:
+            return
         if new_direction == "Up" and snake_direction != "Down":
             snake_direction = "Up"
+            last_direction_change_time  = current_time
         elif new_direction == "Down" and snake_direction != "Up":
             snake_direction = "Down"
+            last_direction_change_time  = current_time
         elif new_direction == "Left" and snake_direction != "Right":
             snake_direction = "Left"
+            last_direction_change_time  = current_time
         elif new_direction == "Right" and snake_direction != "Left":
             snake_direction = "Right"
+            last_direction_change_time  = current_time
     
     def draw_score():
         snake_length = len(snake)
