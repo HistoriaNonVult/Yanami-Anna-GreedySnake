@@ -5270,7 +5270,28 @@ def start_main_game():
         print(current_time - last_direction_change_time)
         # 检查时间间隔
         if current_time - last_direction_change_time < direction_change_interval:
-            return  # 如果时间间隔未到，则不改变方向
+            nonlocal snake
+                # 获取蛇头位置和方向    
+            head_x, head_y = snake[-1]
+            if new_direction == "Up":
+                new_head_ = (head_x, head_y - 20)
+            elif new_direction == "Down":
+                new_head_ = (head_x, head_y + 20)
+            elif new_direction == "Left":
+                new_head_ = (head_x - 20, head_y)
+            elif new_direction == "Right":
+                new_head_ = (head_x + 20, head_y)
+                
+            # 处理穿墙逻辑
+            global Game_Mode
+            if Game_Mode == "Pass":  # 可以穿墙
+                # 如果超出边界,从对面出现
+                new_head_ = (
+                    new_head_[0] % 400,  # x坐标取余
+                    new_head_[1] % 400   # y坐标取余
+                )
+            if new_head_ in snake:
+                return
         nonlocal snake_direction
         if new_direction == snake_direction:
             return
