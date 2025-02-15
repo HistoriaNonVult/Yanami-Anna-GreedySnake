@@ -73,10 +73,10 @@ jobs:
           
           ### 游戏说明
           - 方向键控制蛇的移动
-          - ESC 暂停游戏
-          - 空格键继续游戏
-          - P 键截图保存
-          
+          - SPACE/P 暂停游戏
+          - SPACE/P 继续游戏
+          - R 重新开始游戏
+          - B 返回
           ### 版本特性
           ${{ github.event.head_commit.message }}
           
