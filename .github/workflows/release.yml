@@ -2,7 +2,7 @@ name: Build and Release
 
 env:
   APP_NAME: GreedySnake
-  PYTHON_VERSION: '3.9'
+  PYTHON_VERSION: '3.11'
   BUILD_DIR: dist
   ASSET_DIR: assets
 
