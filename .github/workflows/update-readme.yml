@@ -1,0 +1,34 @@
+name: Update README
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # 每小时执行一次
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Fetch GitHub Stats
+      run: |
+        curl -s https://img.shields.io/github/stars/HistoriaNonVult/Yanami-Anna-GreedySnake?style=social > stars.svg
+        curl -s https://img.shields.io/github/languages/code-size/HistoriaNonVult/Yanami-Anna-GreedySnake > code-size.svg
+        curl -s https://img.shields.io/github/last-commit/HistoriaNonVult/Yanami-Anna-GreedySnake > last-commit.svg
+
+    - name: Update README
+      run: |
+        sed -i 's|!\[GitHub Repo stars\](.*)|![GitHub Repo stars](stars.svg)|' README.md
+        sed -i 's|!\[Code Size\](.*)|![Code Size](code-size.svg)|' README.md
+        sed -i 's|!\[Last commit\](.*)|![Last commit](last-commit.svg)|' README.md
+
+    - name: Commit and Push Changes
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add README.md stars.svg code-size.svg last-commit.svg
+        git commit -m "Auto-update README badges"
+        git push
