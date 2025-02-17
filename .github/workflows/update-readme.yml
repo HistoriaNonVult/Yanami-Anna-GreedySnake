@@ -43,10 +43,20 @@ jobs:
         sed -i 's|https://img.shields.io/badge/python-3.8%2B-blue|.github/badges/python.svg|' README.md
         sed -i 's|https://www.codefactor.io/repository/github/HistoriaNonVult/Yanami-Anna-GreedySnake/badge|.github/badges/codefactor.svg|' README.md
 
-    - name: Commit and Push Changes
-      run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git add .github/badges/* README.md
-        git commit -m "Update badges [skip ci]" || exit 0
-        git push
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "Update badges [skip ci]"
+        title: "Auto-update README badges"
+        branch: update-readme-badges
+        base: main
+        delete-branch: true
+        body: |
+          自动更新 README 徽章
+          
+          - 更新了项目统计徽章
+          - 更新了代码质量徽章
+          - 更新了版本信息徽章
+          
+          由 GitHub Actions 自动创建的 Pull Request
