@@ -6,7 +6,8 @@ on:
   workflow_dispatch:  # 允许手动触发
 
 permissions:
-  contents: write  # 添加写入权限
+  contents: write
+  pull-requests: write
 
 jobs:
   update-readme:
@@ -16,11 +17,10 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # 获取完整历史记录
+        fetch-depth: 0
 
     - name: Fetch GitHub Stats
       run: |
-        # 获取徽章并保存为临时文件
         mkdir -p .github/badges
         curl -s "https://img.shields.io/github/stars/HistoriaNonVult/Yanami-Anna-GreedySnake?style=social&cacheSeconds=60" > .github/badges/stars.svg
         curl -s "https://img.shields.io/github/languages/code-size/HistoriaNonVult/Yanami-Anna-GreedySnake?label=Code%20Size&color=blue&cacheSeconds=3600" > .github/badges/code-size.svg
@@ -37,10 +37,18 @@ jobs:
         sed -i 's|!\[GitHub release\]([^)]*)|![GitHub release](.github/badges/release.svg)|' README.md
         sed -i 's|!\[CodeFactor\]([^)]*)|![CodeFactor](.github/badges/codefactor.svg)|' README.md
 
-    - name: Commit and Push Changes
-      run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git add README.md .github/badges/*.svg
-        git commit -m "Auto-update README badges [skip ci]" || exit 0  # 如果没有变化就退出
-        git push
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "Auto-update README badges [skip ci]"
+        title: "Auto-update README badges"
+        body: |
+          自动更新 README 徽章
+          
+          - 更新了项目统计徽章
+          - 更新了代码质量徽章
+          - 更新了版本信息徽章
+        branch: update-readme-badges
+        base: main
+        delete-branch: true
