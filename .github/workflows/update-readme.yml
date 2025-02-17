@@ -5,6 +5,9 @@ on:
     - cron: '0 * * * *'  # 每小时执行一次
   workflow_dispatch:  # 允许手动触发
 
+permissions:
+  contents: write  # 添加写入权限
+
 jobs:
   update-readme:
     runs-on: ubuntu-latest
@@ -12,29 +15,32 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # 获取完整历史记录
 
     - name: Fetch GitHub Stats
       run: |
         # 获取徽章并保存为临时文件
-        curl -s "https://img.shields.io/github/stars/HistoriaNonVult/Yanami-Anna-GreedySnake?style=social&cacheSeconds=60" > stars.svg
-        curl -s "https://img.shields.io/github/languages/code-size/HistoriaNonVult/Yanami-Anna-GreedySnake?label=Code%20Size&color=blue&cacheSeconds=3600" > code-size.svg
-        curl -s "https://img.shields.io/github/last-commit/HistoriaNonVult/Yanami-Anna-GreedySnake?cacheSeconds=60" > last-commit.svg
-        curl -s "https://img.shields.io/github/v/release/HistoriaNonVult/Yanami-Anna-GreedySnake?include_prereleases&cacheSeconds=60" > release.svg
-        curl -s "https://www.codefactor.io/repository/github/HistoriaNonVult/Yanami-Anna-GreedySnake/badge" > codefactor.svg
+        mkdir -p .github/badges
+        curl -s "https://img.shields.io/github/stars/HistoriaNonVult/Yanami-Anna-GreedySnake?style=social&cacheSeconds=60" > .github/badges/stars.svg
+        curl -s "https://img.shields.io/github/languages/code-size/HistoriaNonVult/Yanami-Anna-GreedySnake?label=Code%20Size&color=blue&cacheSeconds=3600" > .github/badges/code-size.svg
+        curl -s "https://img.shields.io/github/last-commit/HistoriaNonVult/Yanami-Anna-GreedySnake?cacheSeconds=60" > .github/badges/last-commit.svg
+        curl -s "https://img.shields.io/github/v/release/HistoriaNonVult/Yanami-Anna-GreedySnake?include_prereleases&cacheSeconds=60" > .github/badges/release.svg
+        curl -s "https://www.codefactor.io/repository/github/HistoriaNonVult/Yanami-Anna-GreedySnake/badge" > .github/badges/codefactor.svg
 
     - name: Update README
       run: |
         # 更新所有徽章
-        sed -i 's|!\[GitHub Repo stars\]([^)]*)|![GitHub Repo stars](stars.svg)|' README.md
-        sed -i 's|!\[Code Size\]([^)]*)|![Code Size](code-size.svg)|' README.md
-        sed -i 's|!\[Last commit\]([^)]*)|![Last commit](last-commit.svg)|' README.md
-        sed -i 's|!\[GitHub release\]([^)]*)|![GitHub release](release.svg)|' README.md
-        sed -i 's|!\[CodeFactor\]([^)]*)|![CodeFactor](codefactor.svg)|' README.md
+        sed -i 's|!\[GitHub Repo stars\]([^)]*)|![GitHub Repo stars](.github/badges/stars.svg)|' README.md
+        sed -i 's|!\[Code Size\]([^)]*)|![Code Size](.github/badges/code-size.svg)|' README.md
+        sed -i 's|!\[Last commit\]([^)]*)|![Last commit](.github/badges/last-commit.svg)|' README.md
+        sed -i 's|!\[GitHub release\]([^)]*)|![GitHub release](.github/badges/release.svg)|' README.md
+        sed -i 's|!\[CodeFactor\]([^)]*)|![CodeFactor](.github/badges/codefactor.svg)|' README.md
 
     - name: Commit and Push Changes
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git add README.md *.svg
-        git commit -m "Auto-update README badges [skip ci]"
+        git add README.md .github/badges/*.svg
+        git commit -m "Auto-update README badges [skip ci]" || exit 0  # 如果没有变化就退出
         git push
