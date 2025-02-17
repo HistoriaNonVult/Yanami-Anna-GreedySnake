@@ -409,9 +409,9 @@ class TransparentWindow:
                 
                 # 添加悬停效果
                 item_label.bind('<Enter>', 
-                    lambda e, l=item_label: l.configure(fg='#FF2D55'))
+                    lambda e, lbl=item_label: lbl.configure(fg='#FF2D55'))
                 item_label.bind('<Leave>', 
-                    lambda e, l=item_label: l.configure(fg='#FFD700'))
+                    lambda e, lbl=item_label: lbl.configure(fg='#FFD700'))
         
         # Bind shortcuts
         self.window.bind('<Escape>', lambda e: self.window.destroy())
@@ -2618,7 +2618,7 @@ def start_main_game():
         try:
             screen_width = window.winfo_screenwidth()
             screen_height = window.winfo_screenheight()
-        except:
+        except Exception as e:
             # 如果获取失败使用默认值
             screen_width = 1024
             screen_height = 768
@@ -5298,16 +5298,16 @@ def start_main_game():
             return
         if new_direction == "Up" and snake_direction != "Down":
             snake_direction = "Up"
-            last_direction_change_time  = current_time
+            last_direction_change_time = current_time
         elif new_direction == "Down" and snake_direction != "Up":
             snake_direction = "Down"
-            last_direction_change_time  = current_time
+            last_direction_change_time = current_time
         elif new_direction == "Left" and snake_direction != "Right":
             snake_direction = "Left"
-            last_direction_change_time  = current_time
+            last_direction_change_time = current_time
         elif new_direction == "Right" and snake_direction != "Left":
             snake_direction = "Right"
-            last_direction_change_time  = current_time
+            last_direction_change_time = current_time
     
     def draw_score():
         snake_length = len(snake)
