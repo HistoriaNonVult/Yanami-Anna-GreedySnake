@@ -2750,8 +2750,8 @@ def start_main_game():
         for trail in trail_windows:
             try:
                 trail.destroy()
-            except:
-                pass
+            except Exception as e:
+                print(f" failed: {e}")
         trail_windows.clear()
     window.bind("<Control-Left>", lambda e: move_window("Left"))
     window.bind("<Control-Right>", lambda e: move_window("Right")) 
@@ -3896,8 +3896,8 @@ def start_main_game():
                     window.after_cancel(int(after_id))
                 except ValueError:
                     continue
-        except Exception:
-            pass
+        except Exception as e:
+            print(f" failed: {e}")
         
         # 40步 × 20ms = 800ms (0.8秒)
         alphas = [i/40 for i in range(40, -1, -1)]  # 从1.0到0.0,共41步
@@ -3933,15 +3933,15 @@ def start_main_game():
                 try:
                     if 'sound_manager' in globals():
                         sound_manager.cleanup()
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f" failed: {e}")
                     
                 try:
                     if pygame.mixer.get_init():
                         pygame.mixer.music.fadeout(200)  # 音乐淡出时间增加到200ms
                         pygame.mixer.stop()
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f" failed: {e}")
                 
                 # 取消所有pending的after调用
                 try:
@@ -3951,8 +3951,8 @@ def start_main_game():
                                 window.after_cancel(int(after_id))
                             except (ValueError, tk.TclError):
                                 continue
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f" failed: {e}")
                     
                 # 清理画布和窗口内容
                 try:
@@ -3962,8 +3962,8 @@ def start_main_game():
                         canvas.update_idletasks()
                         for widget in window.winfo_children():
                             widget.destroy()
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f" failed: {e}")
                     
                 # 优雅地销毁当前窗口
                 try:
@@ -3971,8 +3971,8 @@ def start_main_game():
                         window.withdraw()  # 先隐藏窗口
                         window.update()
                         window.destroy()
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"failed: {e}")
                     
                 # 重置运行状态标记    
                 back_to_start.is_running = False
@@ -3990,8 +3990,8 @@ def start_main_game():
                 try:
                     if window.winfo_exists():
                         window.destroy()
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"failed: {e}")
                 # 重置运行状态标记    
                 back_to_start.is_running = False
                 # 重新创建开始页面    
@@ -5080,8 +5080,8 @@ def start_main_game():
                                     try:
                                         firework_sound = pygame.mixer.Sound(os.path.join(current_dir, "assets", "music", "firework.wav"))
                                         firework_sound.play()
-                                    except:
-                                        pass
+                                    except Exception as e:
+                                        print(f"Sound play failed: {e}")
                                     
                                     # 第一次和第二次间隔1.8s,第二次和第三次间隔3s
                                     if count == 0:
@@ -5219,8 +5219,9 @@ def start_main_game():
                     # 播放背景切换音效（如果有）
                     try:
                         sound_manager.play('background_change')
-                    except:
-                        pass
+                    except Exception as e:
+                        print(f"Sound play failed: {e}")
+
                         
                 except Exception as e:
                     print(f"背景切换失败: {str(e)}")
