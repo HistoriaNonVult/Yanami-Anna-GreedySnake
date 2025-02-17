@@ -5,7 +5,7 @@ on:
     - cron: '0 * * * *'  # 每小时执行一次
   workflow_dispatch:  # 允许手动触发
 
-permissions: write-all  # 给予所有写入权限
+permissions: write-all
 
 jobs:
   update-readme:
@@ -18,36 +18,35 @@ jobs:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Fetch GitHub Stats
+    - name: Create Badges Directory
+      run: mkdir -p .github/badges
+
+    - name: Download Badges
       run: |
-        mkdir -p .github/badges
-        curl -s "https://img.shields.io/github/stars/HistoriaNonVult/Yanami-Anna-GreedySnake?style=social&cacheSeconds=60" > .github/badges/stars.svg
-        curl -s "https://img.shields.io/github/languages/code-size/HistoriaNonVult/Yanami-Anna-GreedySnake?label=Code%20Size&color=blue&cacheSeconds=3600" > .github/badges/code-size.svg
-        curl -s "https://img.shields.io/github/last-commit/HistoriaNonVult/Yanami-Anna-GreedySnake?cacheSeconds=60" > .github/badges/last-commit.svg
-        curl -s "https://img.shields.io/github/v/release/HistoriaNonVult/Yanami-Anna-GreedySnake?include_prereleases&cacheSeconds=60" > .github/badges/release.svg
-        curl -s "https://www.codefactor.io/repository/github/HistoriaNonVult/Yanami-Anna-GreedySnake/badge" > .github/badges/codefactor.svg
+        # 下载所有徽章
+        curl -o .github/badges/stars.svg "https://img.shields.io/github/stars/HistoriaNonVult/Yanami-Anna-GreedySnake?style=social&cacheSeconds=60"
+        curl -o .github/badges/license.svg "https://img.shields.io/badge/License-Apache%202.0-blue.svg"
+        curl -o .github/badges/release.svg "https://img.shields.io/github/v/release/HistoriaNonVult/Yanami-Anna-GreedySnake?include_prereleases&cacheSeconds=60"
+        curl -o .github/badges/code-size.svg "https://img.shields.io/github/languages/code-size/HistoriaNonVult/Yanami-Anna-GreedySnake?label=Code%20Size&color=blue&cacheSeconds=3600"
+        curl -o .github/badges/last-commit.svg "https://img.shields.io/github/last-commit/HistoriaNonVult/Yanami-Anna-GreedySnake?cacheSeconds=60"
+        curl -o .github/badges/python.svg "https://img.shields.io/badge/python-3.8%2B-blue"
+        curl -o .github/badges/codefactor.svg "https://www.codefactor.io/repository/github/HistoriaNonVult/Yanami-Anna-GreedySnake/badge"
 
     - name: Update README
       run: |
-        # 更新所有徽章
-        sed -i 's|!\[GitHub Repo stars\]([^)]*)|![GitHub Repo stars](.github/badges/stars.svg)|' README.md
-        sed -i 's|!\[Code Size\]([^)]*)|![Code Size](.github/badges/code-size.svg)|' README.md
-        sed -i 's|!\[Last commit\]([^)]*)|![Last commit](.github/badges/last-commit.svg)|' README.md
-        sed -i 's|!\[GitHub release\]([^)]*)|![GitHub release](.github/badges/release.svg)|' README.md
-        sed -i 's|!\[CodeFactor\]([^)]*)|![CodeFactor](.github/badges/codefactor.svg)|' README.md
+        # 更新 README 中的徽章链接
+        sed -i 's|https://img.shields.io/github/stars/HistoriaNonVult/Yanami-Anna-GreedySnake?style=social&cacheSeconds=60|.github/badges/stars.svg|' README.md
+        sed -i 's|https://img.shields.io/badge/License-Apache%202.0-blue.svg|.github/badges/license.svg|' README.md
+        sed -i 's|https://img.shields.io/github/v/release/HistoriaNonVult/Yanami-Anna-GreedySnake?include_prereleases&cacheSeconds=60|.github/badges/release.svg|' README.md
+        sed -i 's|https://img.shields.io/github/languages/code-size/HistoriaNonVult/Yanami-Anna-GreedySnake?label=Code%20Size&color=blue&cacheSeconds=3600|.github/badges/code-size.svg|' README.md
+        sed -i 's|https://img.shields.io/github/last-commit/HistoriaNonVult/Yanami-Anna-GreedySnake?cacheSeconds=60|.github/badges/last-commit.svg|' README.md
+        sed -i 's|https://img.shields.io/badge/python-3.8%2B-blue|.github/badges/python.svg|' README.md
+        sed -i 's|https://www.codefactor.io/repository/github/HistoriaNonVult/Yanami-Anna-GreedySnake/badge|.github/badges/codefactor.svg|' README.md
 
-    - name: Create Pull Request
-      uses: peter-evans/create-pull-request@v5
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        commit-message: "Auto-update README badges [skip ci]"
-        title: "Auto-update README badges"
-        body: |
-          自动更新 README 徽章
-          
-          - 更新了项目统计徽章
-          - 更新了代码质量徽章
-          - 更新了版本信息徽章
-        branch: update-readme-badges
-        base: main
-        delete-branch: true
+    - name: Commit and Push Changes
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add .github/badges/* README.md
+        git commit -m "Update badges [skip ci]" || exit 0
+        git push
