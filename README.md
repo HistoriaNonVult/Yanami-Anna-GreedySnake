@@ -2,7 +2,7 @@
 
 ## **🌟 Latest Version: [GreedySnake 3.3.1-Ultimate](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/releases/tag/v3.3.1-Ultimate)**
 
-![GitHub Repo stars](https://img.shields.io/github/stars/HistoriaNonVult/Yanami-Anna-GreedySnake?style=social)
+[![GitHub Repo stars](https://img.shields.io/github/stars/HistoriaNonVult/Yanami-Anna-GreedySnake?style=social)](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/stargazers)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/HistoriaNonVult/Yanami-Anna-GreedySnake)
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/HistoriaNonVult/Yanami-Anna-GreedySnake)
