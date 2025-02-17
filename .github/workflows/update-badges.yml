@@ -1,0 +1,23 @@
+name: Update Badges
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 每天运行
+  workflow_dispatch:      # 允许手动触发
+
+jobs:
+  update-badges:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Update README badges
+        env:
+          GH_TOKEN: ${{ secrets.BADGE_TOKEN }}
+        run: |
+          # 使用配置的令牌进行API调用
+          curl -H "Authorization: token $GH_TOKEN" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/HistoriaNonVult/Yanami-Anna-GreedySnake
+          
+          # 如果需要，这里可以添加更多的徽章更新逻辑
