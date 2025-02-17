@@ -8,5 +8,6 @@
 [![Code size](https://img.shields.io/github/languages/code-size/HistoriaNonVult/Yanami-Anna-GreedySnake?cacheSeconds=60)](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake)
 [![Last commit](https://img.shields.io/github/last-commit/HistoriaNonVult/Yanami-Anna-GreedySnake?cacheSeconds=3600)](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/commits)
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org)
+[![CodeFactor](https://www.codefactor.io/repository/github/HistoriaNonVult/Yanami-Anna-GreedySnake/badge)](https://www.codefactor.io/repository/github/HistoriaNonVult/Yanami-Anna-GreedySnake)
 
 ![Game Background](https://github.com/user-attachments/assets/7449dc61-60f4-4778-9bd6-39c3ef89d08b)
