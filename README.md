@@ -2,12 +2,12 @@
 
 ## **🌟 Latest Version: [GreedySnake 3.3.1-Ultimate](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/releases/tag/v3.3.1-Ultimate)**
 
-[![GitHub Repo stars](https://img.shields.io/github/stars/HistoriaNonVult/Yanami-Anna-GreedySnake?style=social&logo=github&cacheSeconds=1800)](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/stargazers)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat&logo=apache&cacheSeconds=86400)](https://opensource.org/licenses/Apache-2.0)
-[![GitHub release](https://img.shields.io/github/v/release/HistoriaNonVult/Yanami-Anna-GreedySnake?include_prereleases&style=flat&logo=github&cacheSeconds=300)](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/releases)
-[![Code Size](https://img.shields.io/github/languages/code-size/HistoriaNonVult/Yanami-Anna-GreedySnake?style=flat&logo=github&label=Code%20Size&color=blue&cacheSeconds=3600)](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake)
-[![Last commit](https://img.shields.io/github/last-commit/HistoriaNonVult/Yanami-Anna-GreedySnake?style=flat&logo=git&cacheSeconds=300)](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/commits)
-[![Python Version](https://img.shields.io/badge/python-3.8+-blue?style=flat&logo=python&logoColor=white)](https://www.python.org)
-[![CodeFactor](https://www.codefactor.io/repository/github/HistoriaNonVult/Yanami-Anna-GreedySnake/badge?style=flat)](https://www.codefactor.io/repository/github/HistoriaNonVult/Yanami-Anna-GreedySnake)
+[![GitHub Repo stars](https://img.shields.io/github/stars/HistoriaNonVult/Yanami-Anna-GreedySnake?style=social&logo=github&maxAge=2592000)](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/stargazers)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat&logo=apache&maxAge=2592000)](https://opensource.org/licenses/Apache-2.0)
+[![GitHub release](https://img.shields.io/github/v/release/HistoriaNonVult/Yanami-Anna-GreedySnake?include_prereleases&style=flat&logo=github&maxAge=3600)](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/releases)
+[![Code Size](https://img.shields.io/github/languages/code-size/HistoriaNonVult/Yanami-Anna-GreedySnake?style=flat&logo=github&label=Code%20Size&color=blue&maxAge=3600)](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake)
+[![Last commit](https://img.shields.io/github/last-commit/HistoriaNonVult/Yanami-Anna-GreedySnake?style=flat&logo=git&maxAge=3600)](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/commits)
+[![Python Version](https://img.shields.io/badge/python-3.8+-blue?style=flat&logo=python&logoColor=white&maxAge=2592000)](https://www.python.org)
+[![CodeFactor](https://www.codefactor.io/repository/github/HistoriaNonVult/Yanami-Anna-GreedySnake/badge?style=flat&maxAge=2592000)](https://www.codefactor.io/repository/github/HistoriaNonVult/Yanami-Anna-GreedySnake)
 
 ![Game Background](https://github.com/user-attachments/assets/7449dc61-60f4-4778-9bd6-39c3ef89d08b)
