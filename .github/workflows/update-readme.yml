@@ -15,20 +15,26 @@ jobs:
 
     - name: Fetch GitHub Stats
       run: |
-        curl -s https://img.shields.io/github/stars/HistoriaNonVult/Yanami-Anna-GreedySnake?style=social > stars.svg
-        curl -s https://img.shields.io/github/languages/code-size/HistoriaNonVult/Yanami-Anna-GreedySnake > code-size.svg
-        curl -s https://img.shields.io/github/last-commit/HistoriaNonVult/Yanami-Anna-GreedySnake > last-commit.svg
+        # 获取徽章并保存为临时文件
+        curl -s "https://img.shields.io/github/stars/HistoriaNonVult/Yanami-Anna-GreedySnake?style=social&cacheSeconds=60" > stars.svg
+        curl -s "https://img.shields.io/github/languages/code-size/HistoriaNonVult/Yanami-Anna-GreedySnake?label=Code%20Size&color=blue&cacheSeconds=3600" > code-size.svg
+        curl -s "https://img.shields.io/github/last-commit/HistoriaNonVult/Yanami-Anna-GreedySnake?cacheSeconds=60" > last-commit.svg
+        curl -s "https://img.shields.io/github/v/release/HistoriaNonVult/Yanami-Anna-GreedySnake?include_prereleases&cacheSeconds=60" > release.svg
+        curl -s "https://www.codefactor.io/repository/github/HistoriaNonVult/Yanami-Anna-GreedySnake/badge" > codefactor.svg
 
     - name: Update README
       run: |
-        sed -i 's|!\[GitHub Repo stars\](.*)|![GitHub Repo stars](stars.svg)|' README.md
-        sed -i 's|!\[Code Size\](.*)|![Code Size](code-size.svg)|' README.md
-        sed -i 's|!\[Last commit\](.*)|![Last commit](last-commit.svg)|' README.md
+        # 更新所有徽章
+        sed -i 's|!\[GitHub Repo stars\]([^)]*)|![GitHub Repo stars](stars.svg)|' README.md
+        sed -i 's|!\[Code Size\]([^)]*)|![Code Size](code-size.svg)|' README.md
+        sed -i 's|!\[Last commit\]([^)]*)|![Last commit](last-commit.svg)|' README.md
+        sed -i 's|!\[GitHub release\]([^)]*)|![GitHub release](release.svg)|' README.md
+        sed -i 's|!\[CodeFactor\]([^)]*)|![CodeFactor](codefactor.svg)|' README.md
 
     - name: Commit and Push Changes
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git add README.md stars.svg code-size.svg last-commit.svg
-        git commit -m "Auto-update README badges"
+        git add README.md *.svg
+        git commit -m "Auto-update README badges [skip ci]"
         git push

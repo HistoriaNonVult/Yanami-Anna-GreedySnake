@@ -4,8 +4,8 @@
 
 [![GitHub Repo stars](https://img.shields.io/github/stars/HistoriaNonVult/Yanami-Anna-GreedySnake?style=social&cacheSeconds=60)](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/stargazers)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![GitHub release](https://img.shields.io/github/v/release/HistoriaNonVult/Yanami-Anna-GreedySnake?include_prereleases&cacheSeconds=60)](https://www.codefactor.io/repository/github/HistoriaNonVult/Yanami-Anna-GreedySnake)
-![Code Size](https://img.shields.io/github/languages/code-size/HistoriaNonVult/Yanami-Anna-GreedySnake?label=Code%20Size&color=blue&cacheSeconds=3600)
+[![GitHub release](https://img.shields.io/github/v/release/HistoriaNonVult/Yanami-Anna-GreedySnake?include_prereleases&cacheSeconds=60)](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/releases)
+[![Code Size](https://img.shields.io/github/languages/code-size/HistoriaNonVult/Yanami-Anna-GreedySnake?label=Code%20Size&color=blue&cacheSeconds=3600)](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake)
 [![Last commit](https://img.shields.io/github/last-commit/HistoriaNonVult/Yanami-Anna-GreedySnake?cacheSeconds=60)](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/commits)
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org)
 [![CodeFactor](https://www.codefactor.io/repository/github/HistoriaNonVult/Yanami-Anna-GreedySnake/badge)](https://www.codefactor.io/repository/github/HistoriaNonVult/Yanami-Anna-GreedySnake)
