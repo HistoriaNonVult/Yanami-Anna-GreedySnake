@@ -5178,13 +5178,15 @@ def start_main_game():
             
             effect = food.properties[food.food_type]['effect']
             if effect == 'speed_up':
-                snake_speed = max(78, snake_speed - 10)
+                snake_speed = max(70, snake_speed - 10)
+                print("speed up")
+                print(snake_speed)
                 #show_effect_message('speed_up')
             elif effect == 'slow_down':
-                snake_speed = min(150, snake_speed + 10)
+                snake_speed = min(120, snake_speed + 10)
                 #show_effect_message('slow_down')
             elif effect == 'rainbow':
-                snake_speed = min(150, snake_speed + 5)
+                snake_speed = max(70, snake_speed - 5)
                 nr = color_chose
                 color_chose = random.randint(0, 5)  # 随机切换颜色方案
                 #print("COLORRRRRRRR")
@@ -5192,7 +5194,7 @@ def start_main_game():
                     color_chose = random.randint(0, 5)  # 随机切换颜色方案
             elif effect == 'star_candy':
                 try:
-                    snake_speed = min(150, snake_speed + 2)
+                    snake_speed = max(70, snake_speed - 2)
                     nonlocal background_images, selected_bg, bg_image_path, bg_image, image, canvas
                     
                     # 保存当前背景以避免重复选择
