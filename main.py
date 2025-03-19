@@ -14,7 +14,7 @@ import pywinstyles  # 导入窗口样式库
 import array
 from concurrent.futures import ThreadPoolExecutor
 last_direction_change_time = 0
-direction_change_interval = 0.10  # 0.05秒的时间间隔
+direction_change_interval = 0.125  # 0.125秒的时间间隔
 # 窗口样式对照表
 WINDOW_STYLES = {
     0: "dark",       # 深色主题
