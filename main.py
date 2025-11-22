@@ -750,7 +750,7 @@ class StartPage:
         self.window.bind("<Button-1>", self.create_firework)
         self.window.bind("<Button-2>", self.create_firework)
         self.window.bind("<Button-3>", self.create_firework)
-        self.particle_trails = []
+
         # 存储烟花粒子
         self.particles = []
         
@@ -1902,7 +1902,17 @@ class StartPage:
             
             color = f'#{r:02x}{g:02x}{b:02x}'
             
+            # 立即创建画布元素
+            item_id = self.canvas.create_oval(
+                event.x - size, event.y - size,
+                event.x + size, event.y + size,
+                fill=color,
+                outline="",
+                tags="particle"
+            )
+            
             particle = {
+                "id": item_id,
                 "x": event.x,
                 "y": event.y,
                 "speed_x": math.cos(angle + angle_variation) * speed * speed_variation,
@@ -1912,16 +1922,18 @@ class StartPage:
                 "size": size,
                 "alpha": 1.0,
                 "decay_rate": random.uniform(0.01, 0.03),
-                "sparkle_timer": random.randint(0, 10)
+                "sparkle_timer": random.randint(0, 10),
+                "glow_id": None
             }
             self.particles.append(particle)
-            self.particle_trails.append([])  # 初始化每个粒子的轨迹为空列表
             
         # 添加次要爆炸效果
         for _ in range(random.randint(2, 4)):
             self.create_secondary_explosion(event.x, event.y, palette)
             
-        self.animate_firework()
+        if not hasattr(self, 'is_animating_fireworks') or not self.is_animating_fireworks:
+            self.is_animating_fireworks = True
+            self.animate_firework()
     
     def create_secondary_explosion(self, x, y, color_scheme):
         # 创建较小的次要爆炸
@@ -1933,25 +1945,48 @@ class StartPage:
             for _ in range(20):
                 angle = random.uniform(0, 2 * math.pi)
                 speed = random.uniform(2.0, 4.0)
+                size = random.uniform(1, 3)
+                color = random.choice(color_scheme)
+                
+                start_x = x + offset_x
+                start_y = y + offset_y
+                
+                # 立即创建画布元素
+                item_id = self.canvas.create_oval(
+                    start_x - size, start_y - size,
+                    start_x + size, start_y + size,
+                    fill=color,
+                    outline="",
+                    tags="particle"
+                )
+                
                 particle = {
-                    "x": x + offset_x,
-                    "y": y + offset_y,
+                    "id": item_id,
+                    "x": start_x,
+                    "y": start_y,
                     "speed_x": math.cos(angle) * speed,
                     "speed_y": math.sin(angle) * speed,
-                    "color": random.choice(color_scheme),
-                    "size": random.uniform(1, 3),
+                    "color": color,
+                    "size": size,
                     "alpha": 1.0,
-                    "trail": [],
                     "decay_rate": random.uniform(0.02, 0.04),
-                    "sparkle_timer": random.randint(0, 10)
+                    "sparkle_timer": random.randint(0, 10),
+                    "glow_id": None
                 }
                 self.particles.append(particle)
+            
+            # 如果动画循环停止了，重新启动
+            if not hasattr(self, 'is_animating_fireworks') or not self.is_animating_fireworks:
+                self.is_animating_fireworks = True
+                self.animate_firework()
                 
         self.window.after(delay * 50, delayed_explosion)
         
     def animate_firework(self):
-        self.canvas.delete("particle")
-        
+        if not self.particles:
+            self.is_animating_fireworks = False
+            return
+
         # 使用 enumerate 和切片时要小心，因为我们会修改列表
         i = 0
         while i < len(self.particles):
@@ -1963,52 +1998,58 @@ class StartPage:
             particle["alpha"] -= particle["decay_rate"]
             
             if particle["alpha"] <= 0:
+                # 删除画布元素
+                self.canvas.delete(particle["id"])
+                if particle["glow_id"]:
+                    self.canvas.delete(particle["glow_id"])
+                
                 self.particles.pop(i)
-                if i < len(self.particle_trails):
-                    self.particle_trails.pop(i)
                 continue
             
-            # 确保 particle_trails 有足够的空间
-            while len(self.particle_trails) <= i:
-                self.particle_trails.append([])
-                
-            # 更新轨迹
-            self.particle_trails[i].append((particle["x"], particle["y"]))
-            if len(self.particle_trails[i]) > 10:  # 限制轨迹长度
-                self.particle_trails[i].pop(0)
-            
-            # 绘制粒子
+            # 更新粒子位置和大小
             size = particle["size"] * particle["alpha"]
-            
-            self.canvas.create_oval(
+            self.canvas.coords(
+                particle["id"],
                 particle["x"] - size,
                 particle["y"] - size,
                 particle["x"] + size,
-                particle["y"] + size,
-                fill=particle["color"],
-                outline="",
-                tags="particle"
+                particle["y"] + size
             )
             
             # 添加发光效果
             if particle["alpha"] > 0.5:
                 glow_size = size * 1.5
-                self.canvas.create_oval(
-                    particle["x"] - glow_size,
-                    particle["y"] - glow_size,
-                    particle["x"] + glow_size,
-                    particle["y"] + glow_size,
-                    fill="",
-                    outline=particle["color"],
-                    width=0.5,
-                    tags="particle",
-                    stipple='gray25'
-                )
+                if particle["glow_id"] is None:
+                    particle["glow_id"] = self.canvas.create_oval(
+                        particle["x"] - glow_size,
+                        particle["y"] - glow_size,
+                        particle["x"] + glow_size,
+                        particle["y"] + glow_size,
+                        fill="",
+                        outline=particle["color"],
+                        width=0.5,
+                        tags="particle",
+                        stipple='gray25'
+                    )
+                else:
+                    self.canvas.coords(
+                        particle["glow_id"],
+                        particle["x"] - glow_size,
+                        particle["y"] - glow_size,
+                        particle["x"] + glow_size,
+                        particle["y"] + glow_size
+                    )
+            else:
+                if particle["glow_id"]:
+                    self.canvas.delete(particle["glow_id"])
+                    particle["glow_id"] = None
                 
             i += 1
         
         if self.particles:
             self.canvas.after(16, self.animate_firework)
+        else:
+            self.is_animating_fireworks = False
     
     def toggle_music(self):
         """切换音乐状态"""
@@ -4606,7 +4647,8 @@ def start_main_game():
     
     # 在 move_snake 函数之前添加
     class CelebrationFirework:
-        def __init__(self, x, y):
+        def __init__(self, canvas, x, y):
+            self.canvas = canvas
             self.x = x
             self.y = y
             self.particles = []
@@ -4645,14 +4687,31 @@ def start_main_game():
                 dx = cos_angle * speed
                 dy = sin_angle * speed
                 
+                color = random.choice(self.colors)
+                size = random.uniform(2, 6)
+                
+                # 立即创建画布元素
+                # 光晕
+                glow_id = self.canvas.create_oval(
+                    base_x, base_y, base_x, base_y,
+                    fill=color, outline='', stipple='gray25', tags="celebration_firework"
+                )
+                # 核心
+                core_id = self.canvas.create_oval(
+                    base_x, base_y, base_x, base_y,
+                    fill=color, outline='', tags="celebration_firework"
+                )
+                
                 particle = base_particle.copy()
                 particle.update({
                     'dx': dx,
                     'dy': dy,
-                    'color': random.choice(self.colors),
-                    'size': random.uniform(2, 6),
+                    'color': color,
+                    'size': size,
                     'type': 'main',
-                    'sparkle_timer': random.uniform(0, math.pi)
+                    'sparkle_timer': random.uniform(0, math.pi),
+                    'glow_id': glow_id,
+                    'core_id': core_id
                 })
                 self.particles.append(particle)
             
@@ -4663,19 +4722,30 @@ def start_main_game():
                 dx = cos_angle * speed
                 dy = sin_angle * speed
                 
+                color = random.choice(self.colors)
+                
+                # 预创建9段线段用于轨迹
+                segment_ids = []
+                for _ in range(9):
+                    seg_id = self.canvas.create_line(
+                        base_x, base_y, base_x, base_y,
+                        fill=color, width=1, tags="celebration_firework", state='hidden', capstyle=tk.ROUND
+                    )
+                    segment_ids.append(seg_id)
+                
                 particle = base_particle.copy()
                 particle.update({
                     'dx': dx,
                     'dy': dy,
-                    'color': random.choice(self.colors),
+                    'color': color,
                     'size': random.uniform(3, 8),
                     'type': 'trail',
-                    'trail': []
+                    'trail': [],
+                    'segment_ids': segment_ids
                 })
                 self.particles.append(particle)
 
-        def update_and_draw(self, canvas):
-            canvas.delete("celebration_firework")
+        def update_and_draw(self):
             alive_particles = []
             
             # 预计算重力和透明度衰减
@@ -4701,24 +4771,27 @@ def start_main_game():
                         size = p['size'] * p['alpha'] * sparkle
                         x, y = p['x'], p['y']
                         size_1_5 = size * 1.5
-                        color = p['color']
                         
-                        # 批量绘制
-                        canvas.create_oval(
+                        # 更新画布元素
+                        self.canvas.coords(
+                            p['glow_id'],
                             x - size_1_5, y - size_1_5,
-                            x + size_1_5, y + size_1_5,
-                            fill=color,
-                            outline='',
-                            tags="celebration_firework",
-                            stipple='gray25'
+                            x + size_1_5, y + size_1_5
                         )
-                        canvas.create_oval(
+                        self.canvas.coords(
+                            p['core_id'],
                             x - size, y - size,
-                            x + size, y + size,
-                            fill=color,
-                            outline='white' if p['alpha'] > 0.8 else '',
-                            tags="celebration_firework"
+                            x + size, y + size
                         )
+                        # 更新核心轮廓
+                        if p['alpha'] > 0.8:
+                            self.canvas.itemconfig(p['core_id'], outline='white')
+                        else:
+                            self.canvas.itemconfig(p['core_id'], outline='')
+                    else:
+                        # 删除画布元素
+                        self.canvas.delete(p['glow_id'])
+                        self.canvas.delete(p['core_id'])
                 
                 elif p['type'] == 'trail':
                     p['dy'] += TRAIL_GRAVITY
@@ -4733,27 +4806,34 @@ def start_main_game():
                         alive_particles.append(p)
                         trail_len = len(p['trail'])
                         base_width = p['size'] * p['alpha']
-                        color = p['color']
                         
-                        # 使用zip优化轨迹绘制
-                        for i, (p1, p2) in enumerate(zip(p['trail'][:-1], p['trail'][1:])):
-                            ratio = i / trail_len
-                            canvas.create_line(
-                                p1[0], p1[1], p2[0], p2[1],
-                                fill=color,
-                                width=base_width * ratio,
-                                tags="celebration_firework",
-                                capstyle=tk.ROUND
-                            )
+                        # 更新轨迹线段
+                        points = p['trail']
+                        segments = p['segment_ids']
+                        
+                        for i, (p1, p2) in enumerate(zip(points[:-1], points[1:])):
+                            if i < len(segments):
+                                seg_id = segments[i]
+                                ratio = i / trail_len
+                                self.canvas.coords(seg_id, p1[0], p1[1], p2[0], p2[1])
+                                self.canvas.itemconfig(seg_id, width=base_width * ratio, state='normal')
+                        
+                        # 隐藏未使用的线段
+                        for i in range(len(points) - 1, len(segments)):
+                            self.canvas.itemconfig(segments[i], state='hidden')
+                    else:
+                        # 删除画布元素
+                        for seg_id in p['segment_ids']:
+                            self.canvas.delete(seg_id)
             
             self.particles = alive_particles
             return bool(alive_particles)
 
     def show_celebration_firework():
-        firework = CelebrationFirework(200, 150)
+        firework = CelebrationFirework(canvas, 200, 150)
         
         def animate_firework():
-            if game_running and firework.update_and_draw(canvas):
+            if game_running and firework.update_and_draw():
                 window.after(16, animate_firework)
         
         # 播放烟花音效
@@ -5070,9 +5150,9 @@ def start_main_game():
                                     if count >= 3:  # 只循环三次
                                         return
                                     
-                                    firework = CelebrationFirework(200, 150)
+                                    firework = CelebrationFirework(canvas, 200, 150)
                                     def animate_firework():
-                                        if firework.update_and_draw(canvas):
+                                        if firework.update_and_draw():
                                             window.after(16, animate_firework)
                                     animate_firework()
                                     
