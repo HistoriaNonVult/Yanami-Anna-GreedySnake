@@ -40,7 +40,7 @@ pygame.mixer.set_num_channels(32)  # 增加同时播放的声道数
 # 获取当前脚本所在目录
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
-Game_Mode = "Forbid"  # 默认为 Forbid 模式
+Game_Mode = "Pass"  # 默认为 Pass 模式
 high_score = 0
 # 添加音效管理器类
 class SoundManager:
