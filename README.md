@@ -1,6 +1,6 @@
 # Anna Yanami-Themed Musical Snake Game
 
-## **🌟 Latest Version: [GreedySnake 3.3.1-Ultimate](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/releases/tag/v3.3.1-Ultimate)**
+## **🌟 Latest Version: [GreedySnake 3.3.1-Ultras](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/releases/tag/v3.3.1-Ultras)**
 
 [![GitHub Repo stars](https://img.shields.io/badge/Stars-14-lightgrey?style=social&logo=github)](https://github.com/HistoriaNonVult/Yanami-Anna-GreedySnake/stargazers)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat&logo=apache&maxAge=2592000)](https://opensource.org/licenses/Apache-2.0)
