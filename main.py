@@ -2431,7 +2431,8 @@ class StartPage:
                             pygame.mixer.music.load(os.path.join(current_dir, "assets", "music", background_music))
                             pygame.mixer.music.play(-1)
                         self.window.destroy()
-                        start_main_game()
+                        # 使用类化入口启动游戏
+                        MainGame().run()
                 
                 # 启动淡出效果
                 fade_out()
@@ -2587,13 +2588,215 @@ class StartPage:
         # 转换回十六进制颜色
         return f"#{r:02x}{g:02x}{b:02x}"
 
+class MainGame:
+    """规范化的 MainGame 类封装原有 start_main_game 行为。
+
+    目前实现为轻量封装：`run()` 调用原实现 `_start_main_game_impl()`。
+    之后可以将内部状态逐步迁移到此类的实例属性中。
+    """
+    def __init__(self):
+        # 预置默认运行时状态，便于早期委派使用
+        self.color_chose = random.randint(3, 5)
+        self.trail_windows = []
+        self.sound_manager = SoundManager()
+        self.sound_manager.enabled = StartPage.music_mode.get() != "off"
+        # music_mode 保留为 StringVar 以和 StartPage 共享
+        self.music_mode = StartPage.music_mode
+        self.background_images = ['background.jpg', 'background2.jpg','background3.jpg','background4.jpg','background5.jpg']
+        self.selected_bg = None
+        self.bg_image_path = None
+        self.image = None
+        self.bg_image = None
+
+        # 游戏状态
+        self.snake = [(20, 20), (20, 40), (20, 60)]
+        self.snake_direction = "Down"
+        self.food = None
+        self.game_running = True
+        self.game_paused = False
+        self.current_score = 0
+        self.snake_speed = 100
+
+        # 粒子与特效容器
+        self.particles = []
+        self.ripple_particles = []
+        self.milestone_particles = []
+        self.gradient_colors = None
+
+    def run(self):
+        # 将当前实例注入到全局标记中，供旧实现读取/写回局部状态
+        MainGame._RUN_SELF = self
+        try:
+            return _start_main_game_impl()
+        finally:
+            # 清理标记
+            try:
+                del MainGame._RUN_SELF
+            except Exception:
+                pass
+
+    def move_snake_core(self, snake, snake_direction, food, music_mode, background_images):
+        """核心数据更新：计算新蛇头、处理穿墙、碰撞与是否吃到食物。
+        仅修改/返回数据，不进行任何绘制或播放音效。
+
+        返回一个字典，包含需要的变更：
+        - skip: True 表示不进行任何移动（例如暂停或已停止）
+        - death: True 表示发生死亡碰撞，返回 'head'
+        - snake: 更新后的蛇列表
+        - ate: 是否吃到食物
+        - score_increase: 吃到食物增加的分数
+        - snake_speed: 新的 snake_speed（如果被效果修改）
+        - color_chose: 新的颜色方案（如果被效果修改）
+        - selected_bg: 新的背景文件名（只有在特殊效果下返回）
+        """
+        result = {}
+        if getattr(self, 'game_paused', False) or not getattr(self, 'game_running', True):
+            result['skip'] = True
+            return result
+
+        head_x, head_y = snake[-1]
+        if snake_direction == "Up":
+            new_head = (head_x, head_y - 20)
+        elif snake_direction == "Down":
+            new_head = (head_x, head_y + 20)
+        elif snake_direction == "Left":
+            new_head = (head_x - 20, head_y)
+        else:  # Right
+            new_head = (head_x + 20, head_y)
+
+        # 处理穿墙逻辑
+        global Game_Mode
+        if Game_Mode == "Pass":
+            new_head = (new_head[0] % 400, new_head[1] % 400)
+
+        # 撞墙或撞到自己判定
+        if new_head in snake or (
+            Game_Mode == "Forbid" and (
+                new_head[0] < 0 or new_head[0] >= 400 or new_head[1] < 0 or new_head[1] >= 400
+            )
+        ):
+            result['death'] = True
+            result['head'] = new_head
+            return result
+
+        # 否则推进蛇
+        new_snake = list(snake)
+        new_snake.append(new_head)
+
+        ate = False
+        score_increase = 0
+        new_snake_speed = getattr(self, 'snake_speed', 100)
+        new_color_chose = getattr(self, 'color_chose', None)
+        selected_bg = None
+
+        if food and new_head == food.position:
+            ate = True
+            # 读取食物配置以决定分数与效果
+            try:
+                score_increase = food.properties[food.food_type]['score']
+                effect = food.properties[food.food_type]['effect']
+            except Exception:
+                effect = None
+
+            if effect == 'speed_up':
+                new_snake_speed = max(70, new_snake_speed - 10)
+            elif effect == 'slow_down':
+                new_snake_speed = min(120, new_snake_speed + 10)
+            elif effect == 'rainbow':
+                new_snake_speed = max(70, new_snake_speed - 5)
+                nr = new_color_chose
+                # 随机但确保不与当前相同
+                new_color_chose = random.randint(0, 5)
+                while nr == new_color_chose:
+                    new_color_chose = random.randint(0, 5)
+            elif effect == 'star_candy':
+                new_snake_speed = max(70, new_snake_speed - 2)
+                # 选择新的背景文件名（延迟加载交由调用方完成）
+                try:
+                    current_bg = getattr(self, 'selected_bg', None)
+                    available = [bg for bg in background_images if bg != current_bg]
+                    if available:
+                        selected_bg = random.choice(available)
+                except Exception:
+                    selected_bg = None
+
+        else:
+            # 没吃到，缩短尾巴
+            new_snake.pop(0)
+
+        result.update({
+            'snake': new_snake,
+            'ate': ate,
+            'score_increase': score_increase,
+            'snake_speed': new_snake_speed,
+            'color_chose': new_color_chose,
+            'selected_bg': selected_bg,
+        })
+        return result
+
+
 def start_main_game():
+    """兼容函数，旧代码仍可调用。"""
+    return MainGame().run()
+
+
+def _start_main_game_impl():
     
     color_chose = random.randint(3, 5)
     trail_windows = []  # 用于存储所有尾痕窗口
-    # 创建音效管理器
-    sound_manager = SoundManager()
-    sound_manager.enabled = StartPage.music_mode.get() != "off"
+    # 如果通过 MainGame.run 调用，则把实例上的部分状态同步到本地变量，
+    # 这样原有函数内使用 nonlocal 的代码无需大范围改动。
+    _runner = getattr(MainGame, '_RUN_SELF', None)
+    if _runner is not None:
+        try:
+            # 有选择性地覆盖可能已在 runner 上存在的状态属性
+            if hasattr(_runner, 'color_chose'):
+                color_chose = _runner.color_chose
+            if hasattr(_runner, 'trail_windows'):
+                trail_windows = _runner.trail_windows
+            if hasattr(_runner, 'sound_manager'):
+                sound_manager = _runner.sound_manager
+            if hasattr(_runner, 'music_mode'):
+                music_mode = _runner.music_mode
+            if hasattr(_runner, 'background_images'):
+                background_images = _runner.background_images
+            if hasattr(_runner, 'selected_bg'):
+                selected_bg = _runner.selected_bg
+            if hasattr(_runner, 'bg_image_path'):
+                bg_image_path = _runner.bg_image_path
+            if hasattr(_runner, 'image'):
+                image = _runner.image
+            if hasattr(_runner, 'bg_image'):
+                bg_image = _runner.bg_image
+            if hasattr(_runner, 'snake'):
+                snake = _runner.snake
+            if hasattr(_runner, 'snake_direction'):
+                snake_direction = _runner.snake_direction
+            if hasattr(_runner, 'food'):
+                food = _runner.food
+            if hasattr(_runner, 'game_running'):
+                game_running = _runner.game_running
+            if hasattr(_runner, 'game_paused'):
+                game_paused = _runner.game_paused
+            if hasattr(_runner, 'current_score'):
+                current_score = _runner.current_score
+            if hasattr(_runner, 'snake_speed'):
+                snake_speed = _runner.snake_speed
+            if hasattr(_runner, 'particles'):
+                particles = _runner.particles
+            if hasattr(_runner, 'ripple_particles'):
+                ripple_particles = _runner.ripple_particles
+            if hasattr(_runner, 'milestone_particles'):
+                milestone_particles = _runner.milestone_particles
+            if hasattr(_runner, 'gradient_colors'):
+                gradient_colors = _runner.gradient_colors
+        except Exception:
+            # 保持向后兼容：如同步失败，则忽略并继续使用本地初始值
+            pass
+    # 创建音效管理器（仅当本地未从 runner 同步时）
+    if 'sound_manager' not in locals():
+        sound_manager = SoundManager()
+        sound_manager.enabled = StartPage.music_mode.get() != "off"
     
     # 获取音乐模式
     music_mode = StartPage.music_mode.get()
@@ -5323,28 +5526,10 @@ def start_main_game():
         # 更新粒子效果
         update_particles()
         
-        #使用单一计时器和帧计数实现平滑移动
+        # 使用 snake_speed 作为主定时器（单位毫秒），保证速度与原逻辑一致
         if game_running:
-            step = snake_speed // 20  # 从16份改为20份，追求极致平滑
-            window.after(step, lambda: 
-                window.after(step, lambda: 
-                    window.after(step, lambda: 
-                        window.after(step, lambda:
-                            window.after(step, lambda:
-                                window.after(step, lambda:
-                                    window.after(step, lambda:
-                                        window.after(step, lambda:
-                                            window.after(step, lambda:
-                                                window.after(step, lambda:
-                                                    window.after(step, lambda:
-                                                        window.after(step, lambda:
-                                                            window.after(step, lambda:
-                                                                window.after(step, lambda:
-                                                                    window.after(step, lambda:
-                                                                        window.after(step, lambda:
-                                                                            window.after(step, lambda:
-                                                                                window.after(step, lambda:
-                                                                                    window.after(step, move_snake)))))))))))))))))))
+            delay = max(1, int(snake_speed))
+            window.after(delay, move_snake)
 
     
     def change_direction(new_direction):
@@ -5567,8 +5752,28 @@ def start_main_game():
     
     # 立即开始移动蛇
     move_snake()      # 直接调用move_snake而不是使用after
-    
-    
+
+    # 如果通过 MainGame.run 调用，则把局部可变状态写回 runner 实例，
+    # 以便后续外部访问或持久化。
+    _runner = getattr(MainGame, '_RUN_SELF', None)
+    if _runner is not None:
+        try:
+            # 有选择性地把常用局部变量写回到 runner
+            for _name in (
+                'color_chose','trail_windows','sound_manager','music_mode',
+                'background_images','selected_bg','bg_image_path','image','bg_image',
+                'snake','snake_direction','food','game_running','game_paused',
+                'current_score','snake_speed','particles','ripple_particles',
+                'milestone_particles','gradient_colors'
+            ):
+                if _name in locals():
+                    try:
+                        setattr(_runner, _name, locals()[_name])
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
     window.mainloop()
 # 修改程序入口点
 if __name__ == "__main__":
