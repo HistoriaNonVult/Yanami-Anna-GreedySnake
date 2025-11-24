@@ -2228,50 +2228,44 @@ class StartPage:
                 particles.append(particle)
             
             def animate_firework(frame=0):
+                # 简化且稳健的实现：更新位置、透明度并绘制每个粒子
                 if frame >= 40:  # 动画持续40帧
-                    # 切换到波纹效果
                     animate_circle()
                     return
-                
-                self.canvas.delete("firework")  # 清除前一帧
-                
+
+                self.canvas.delete("firework")
+                alive_particles = []
                 for p in particles:
                     # 更新位置
-                    p['x'] += p['dx']
-                    p['y'] += p['dy']
-                    
-                    # 添加轨迹点
-                    p['trail'].append((p['x'], p['y']))
-                    if len(p['trail']) > 5:  # 保持轨迹长度
-                        p['trail'].pop(0)
-                    
-                    # 绘制轨迹
-                    for i in range(len(p['trail']) - 1):
-                        alpha = (i / len(p['trail'])) * p['alpha']
-                        if alpha > 0.1:
-                            self.canvas.create_line(
-                                p['trail'][i][0], p['trail'][i][1],
-                                p['trail'][i+1][0], p['trail'][i+1][1],
-                                fill=p['color'],
-                                width=p['size'] * alpha,
-                                tags="firework"
-                            )
-                    
-                    # 更新透明度
-                    p['alpha'] = max(0, 1 - frame/50)
-                    
-                    # 绘制粒子
-                    size = p['size'] * p['alpha']
-                    self.canvas.create_oval(
-                        p['x'] - size, p['y'] - size,
-                        p['x'] + size, p['y'] + size,
-                        fill=p['color'],
-                        outline='',
-                        tags="firework"
-                    )
-                
+                    p['x'] += p.get('dx', 0)
+                    p['y'] += p.get('dy', 0)
+
+                    # 线性降低透明度（随帧数）
+                    p['alpha'] = max(0.0, 1.0 - frame / 50.0)
+
+                    if p['alpha'] <= 0:
+                        continue
+
+                    alive_particles.append(p)
+
+                    size = p.get('size', 2) * p['alpha']
+                    # 绘制为简单圆形，使用 tag 便于清理
+                    try:
+                        self.canvas.create_oval(
+                            p['x'] - size, p['y'] - size,
+                            p['x'] + size, p['y'] + size,
+                            fill=p.get('color', '#FFFFFF'),
+                            outline='',
+                            tags="firework"
+                        )
+                    except Exception:
+                        pass
+
+                # 保留仍然存活的粒子
+                particles[:] = alive_particles
+
                 self.window.after(16, lambda: animate_firework(frame + 1))
-            
+
             animate_firework()
         
         # 开始烟花动画
@@ -2733,6 +2727,211 @@ class MainGame:
             'selected_bg': selected_bg,
         })
         return result
+
+    def draw_snake(self, canvas, snake, snake_direction, color_chose):
+        """只读绘制：在给定画布上绘制蛇（不修改任何游戏状态）。"""
+        # 使用与原实现一致的渐变方案与随机选择逻辑
+        INTP = random.randint(0, 2)
+        color_schemes = [
+            
+            [
+                ["#FF80ED", "#FF50B8", "#FF2087", "#FF00AA"],
+                ["#80FFFF", "#40E5FF", "#00CCFF", "#00A8FF"],
+                ["#FFE566", "#FFD700", "#FFAD1F", "#FF9912"]
+            ],
+            [
+                ["#E680FF", "#D355FF", "#B82AFF", "#9900FF"],
+                ["#80FFE6", "#40FFD4", "#00FFB8", "#00E5A0"],
+                ["#80FF9E", "#40FF8A", "#00FF76", "#00E562"]
+            ],
+            [
+                ["#FF5555", "#FF2222", "#FF0000", "#CC0066"],
+                ["#DD66FF", "#BB33FF", "#9900FF", "#7700CC"],
+                ["#66FFFF", "#33FFFF", "#00FFFF", "#00CCFF"]
+            ],
+            [
+                ["#FF99FF", "#FF66FF", "#FF33FF", "#CC00FF"],
+                ["#99FFFF", "#66FFFF", "#33FFFF", "#00CCFF"],
+                ["#FFFF99", "#FFFF66", "#FFFF33", "#FFCC00"]
+            ],
+            [
+                ["#FF6699", "#FF3366", "#FF0033", "#CC0033"],
+                ["#66FF99", "#33FF66", "#00FF33", "#00CC33"],
+                ["#FF9966", "#FF6633", "#FF3300", "#CC3300"]
+            ],
+            [
+                ["#9999FF", "#6666FF", "#3333FF", "#0000CC"],
+                ["#99FF99", "#66FF66", "#33FF33", "#00CC00"],
+                ["#FF9999", "#FF6666", "#FF3333", "#CC0000"]
+            ]
+        ]
+
+        # 防御性检查
+        if not snake:
+            return
+
+        colors = color_schemes[color_chose][INTP]
+
+        # 批量绘制蛇身（不绘制最后一段蛇头）
+        color_len = len(colors)
+        for i, segment in enumerate(snake[:-1]):
+            color = colors[i % color_len]
+            canvas.create_rectangle(segment[0], segment[1], segment[0] + 20, segment[1] + 20, fill=color, outline="")
+
+        # 绘制蛇头及眼睛
+        head = snake[-1]
+        head_color = colors[0]
+        canvas.create_rectangle(head[0], head[1], head[0] + 20, head[1] + 20, fill=head_color, outline="")
+
+        # 眼睛位置根据方向调整（与原实现保持一致）
+        if snake_direction == "Right":
+            canvas.create_oval(head[0] + 12, head[1] + 5, head[0] + 16, head[1] + 8, fill="#F8F8F8")
+            canvas.create_oval(head[0] + 13, head[1] + 6, head[0] + 15, head[1] + 7, fill="#2196F3")
+            canvas.create_oval(head[0] + 12, head[1] + 12, head[0] + 16, head[1] + 15, fill="#F8F8F8")
+            canvas.create_oval(head[0] + 13, head[1] + 13, head[0] + 15, head[1] + 14, fill="#2196F3")
+        elif snake_direction == "Left":
+            canvas.create_oval(head[0] + 4, head[1] + 5, head[0] + 8, head[1] + 8, fill="#F8F8F8")
+            canvas.create_oval(head[0] + 5, head[1] + 6, head[0] + 7, head[1] + 7, fill="#2196F3")
+            canvas.create_oval(head[0] + 4, head[1] + 12, head[0] + 8, head[1] + 15, fill="#F8F8F8")
+            canvas.create_oval(head[0] + 5, head[1] + 13, head[0] + 7, head[1] + 14, fill="#2196F3")
+        elif snake_direction == "Up":
+            canvas.create_oval(head[0] + 5, head[1] + 4, head[0] + 8, head[1] + 8, fill="#F8F8F8")
+            canvas.create_oval(head[0] + 6, head[1] + 5, head[0] + 7, head[1] + 7, fill="#2196F3")
+            canvas.create_oval(head[0] + 12, head[1] + 4, head[0] + 15, head[1] + 8, fill="#F8F8F8")
+            canvas.create_oval(head[0] + 13, head[1] + 5, head[0] + 14, head[1] + 7, fill="#2196F3")
+        else:  # Down
+            canvas.create_oval(head[0] + 5, head[1] + 12, head[0] + 8, head[1] + 16, fill="#F8F8F8")
+            canvas.create_oval(head[0] + 6, head[1] + 13, head[0] + 7, head[1] + 15, fill="#2196F3")
+            canvas.create_oval(head[0] + 12, head[1] + 12, head[0] + 15, head[1] + 16, fill="#F8F8F8")
+            canvas.create_oval(head[0] + 13, head[1] + 13, head[0] + 14, head[1] + 15, fill="#2196F3")
+
+    def draw_food(self, canvas, food):
+        """只读绘制：在给定画布上绘制食物（不修改任何游戏状态）。"""
+        if not food:
+            return
+
+        x, y = food.position
+        base_color = food.properties[food.food_type]['color']
+
+        # 发光参数
+        glow = abs(math.sin(time.time() * 2)) * 0.2 + 0.8
+
+        def adjust_color(hex_color, factor):
+            r = int(hex_color[1:3], 16)
+            g = int(hex_color[3:5], 16)
+            b = int(hex_color[5:7], 16)
+            r = min(255, int(r * factor))
+            g = min(255, int(g * factor))
+            b = min(255, int(b * factor))
+            return f'#{r:02x}{g:02x}{b:02x}'
+
+        current_color = adjust_color(base_color, glow)
+
+        if food.food_type == 'normal':
+            canvas.create_rectangle(x, y, x + 20, y + 20, fill=current_color, outline="")
+        elif food.food_type == 'golden':
+            canvas.create_oval(x, y, x + 20, y + 20, fill=current_color, outline="")
+        elif food.food_type == 'special':
+            canvas.create_polygon(x + 10, y, x + 20, y + 10, x + 10, y + 20, x, y + 10, fill=current_color, outline="")
+        elif food.food_type == 'rainbow':
+            canvas.create_oval(x + 5, y + 3, x + 15, y + 13, fill=food.rainbow_colors[food.color_index], outline="")
+            canvas.create_oval(x + 5, y + 7, x + 15, y + 17, fill=food.rainbow_colors[(food.color_index + 1) % len(food.rainbow_colors)], outline="")
+            canvas.create_polygon(x + 2, y + 5, x + 4, y + 7, x + 5, y + 10, x + 4, y + 13, x + 2, y + 15, fill=food.rainbow_colors[(food.color_index + 2) % len(food.rainbow_colors)], outline="")
+            canvas.create_polygon(x + 3, y + 7, x + 4.5, y + 8, x + 5, y + 10, x + 4.5, y + 12, x + 3, y + 13, fill=food.rainbow_colors[(food.color_index + 3) % len(food.rainbow_colors)], stipple='gray50', outline="")
+            canvas.create_polygon(x + 18, y + 5, x + 16, y + 7, x + 15, y + 10, x + 16, y + 13, x + 18, y + 15, fill=food.rainbow_colors[(food.color_index + 2) % len(food.rainbow_colors)], outline="")
+        elif food.food_type == 'star_candy':
+            canvas.create_rectangle(x, y, x + 20, y + 20, fill=current_color, outline="")
+
+    # 辅助只读绘制：为迁移粒子渲染提供小的封装，返回创建的画布 id
+    def draw_particle_oval(self, canvas, x1, y1, x2, y2, fill=None, stipple=None, width=0):
+        try:
+            return canvas.create_oval(x1, y1, x2, y2, fill=fill, stipple=stipple or '', width=width)
+        except Exception:
+            # 回退——确保任何异常不会阻塞主流程
+            return canvas.create_oval(x1, y1, x2, y2, fill=fill, width=width)
+
+    def draw_particle_polygon(self, canvas, points, fill=None, outline=None, width=0, stipple=None):
+        try:
+            return canvas.create_polygon(points, fill=fill, outline=outline or '', width=width, stipple=stipple or '')
+        except Exception:
+            return canvas.create_polygon(points, fill=fill, outline=outline or '', width=width)
+
+    def draw_particle_line(self, canvas, x1, y1, x2, y2, fill=None, width=1):
+        try:
+            return canvas.create_line(x1, y1, x2, y2, fill=fill or '', width=width)
+        except Exception:
+            return canvas.create_line(x1, y1, x2, y2, fill=fill or '', width=width)
+
+    def draw_star_particle(self, canvas, star):
+        """只读绘制 StarParticle 实例（接受 StarParticle 或类似结构）。"""
+        try:
+            if getattr(star, 'alpha', 0) <= 0:
+                return
+
+            # 绘制轨迹
+            trail = getattr(star, 'trail', None)
+            trail_length = len(trail) if trail else 0
+            for i, (tx, ty) in enumerate(trail or []):
+                trail_alpha = (i / trail_length) * star.alpha if trail_length else star.alpha
+                if trail_alpha > 0.1:
+                    trail_size = star.size * 0.5 * trail_alpha
+                    if hasattr(self, 'draw_particle_oval'):
+                        self.draw_particle_oval(canvas, tx - trail_size, ty - trail_size, tx + trail_size, ty + trail_size, fill=star.color, stipple='gray50')
+                    else:
+                        canvas.create_oval(tx - trail_size, ty - trail_size, tx + trail_size, ty + trail_size, fill=star.color, stipple='gray50', outline="")
+
+            # 计算五角星点并绘制
+            points = []
+            for i in range(5):
+                angle = star.rotation + (2 * math.pi * i / 5)
+                cos_angle = math.cos(angle)
+                sin_angle = math.sin(angle)
+                points.extend([star.x + cos_angle * star.size, star.y + sin_angle * star.size])
+                angle += math.pi / 5
+                inner_size = star.size * 0.4
+                points.extend([star.x + math.cos(angle) * inner_size, star.y + math.sin(angle) * inner_size])
+
+            if hasattr(self, 'draw_particle_polygon'):
+                self.draw_particle_polygon(canvas, points, fill=star.color, outline=("white" if star.alpha > 0.7 else ""), width=1, stipple=('gray50' if star.alpha < 0.5 else None))
+            else:
+                canvas.create_polygon(points, fill=star.color, outline=("white" if star.alpha > 0.7 else ""), width=1, stipple=('gray50' if star.alpha < 0.5 else ''))
+        except Exception:
+            # 回退：不要抛出异常影响主循环
+            try:
+                points = []
+                for i in range(5):
+                    angle = star.rotation + (2 * math.pi * i / 5)
+                    points.extend([star.x + math.cos(angle) * star.size, star.y + math.sin(angle) * star.size])
+                canvas.create_polygon(points, fill=getattr(star, 'color', '#FFF'), outline="")
+            except Exception:
+                pass
+
+    def update_item_coords(self, canvas, item_id, *coords):
+        try:
+            canvas.coords(item_id, *coords)
+        except Exception:
+            try:
+                canvas.coords(item_id, *coords)
+            except Exception:
+                pass
+
+    def update_item_config(self, canvas, item_id, **kwargs):
+        try:
+            canvas.itemconfig(item_id, **kwargs)
+        except Exception:
+            try:
+                canvas.itemconfig(item_id, **kwargs)
+            except Exception:
+                pass
+
+    def delete_item(self, canvas, item_id):
+        try:
+            canvas.delete(item_id)
+        except Exception:
+            try:
+                canvas.delete(item_id)
+            except Exception:
+                pass
 
 
 def start_main_game():
@@ -3882,12 +4081,16 @@ def _start_main_game_impl():
                             coords[2] = trail_x + half_size
                             coords[3] = trail_y + half_size
                             
-                            trail_ids_append(create_oval(
-                                *coords,
-                                fill=particle.color,
-                                stipple=STIPPLE_GRAY50 if trail_alpha < 0.5 else EMPTY_STR,
-                                width=0
-                            ))
+                            if _runner is not None and hasattr(_runner, 'draw_particle_oval'):
+                                trail_id = _runner.draw_particle_oval(canvas, coords[0], coords[1], coords[2], coords[3], fill=particle.color, stipple=(STIPPLE_GRAY50 if trail_alpha < 0.5 else EMPTY_STR), width=0)
+                                trail_ids_append(trail_id)
+                            else:
+                                trail_ids_append(create_oval(
+                                    *coords,
+                                    fill=particle.color,
+                                    stipple=STIPPLE_GRAY50 if trail_alpha < 0.5 else EMPTY_STR,
+                                    width=0
+                                ))
                             trail_alpha *= 0.6
                     
                     particle.trail = trail_ids
@@ -3900,12 +4103,15 @@ def _start_main_game_impl():
                 coords_array[2] = particle.x + half_size
                 coords_array[3] = particle.y + half_size
                 
-                particle.id = create_oval(
-                    *coords_array,
-                    fill=particle.color,
-                    stipple=STIPPLE_GRAY50 if particle.alpha < 0.5 else EMPTY_STR,
-                    width=0
-                )
+                if _runner is not None and hasattr(_runner, 'draw_particle_oval'):
+                    particle.id = _runner.draw_particle_oval(canvas, coords_array[0], coords_array[1], coords_array[2], coords_array[3], fill=particle.color, stipple=(STIPPLE_GRAY50 if particle.alpha < 0.5 else EMPTY_STR), width=0)
+                else:
+                    particle.id = create_oval(
+                        *coords_array,
+                        fill=particle.color,
+                        stipple=STIPPLE_GRAY50 if particle.alpha < 0.5 else EMPTY_STR,
+                        width=0
+                    )
                 
                 active_particles_append(particle)
         
@@ -3919,8 +4125,15 @@ def _start_main_game_impl():
         # 无论是暂停还是继续，都重新绘制整个画面
         canvas.delete("all")  # 清除所有内容
         canvas.create_image(0, 0, anchor=tk.NW, image=bg_image)
-        draw_snake()
-        draw_food() 
+        if _runner is not None and hasattr(_runner, 'draw_snake'):
+            _runner.draw_snake(canvas, snake, snake_direction, color_chose)
+        else:
+            draw_snake()
+
+        if _runner is not None and hasattr(_runner, 'draw_food'):
+            _runner.draw_food(canvas, food)
+        else:
+            draw_food()
         draw_score()
         
         if not game_paused:
@@ -4063,8 +4276,15 @@ def _start_main_game_impl():
         generate_food()
         
         # 绘制游戏元素
-        draw_snake()
-        draw_food()
+        if _runner is not None and hasattr(_runner, 'draw_snake'):
+            _runner.draw_snake(canvas, snake, snake_direction, color_chose)
+        else:
+            draw_snake()
+
+        if _runner is not None and hasattr(_runner, 'draw_food'):
+            _runner.draw_food(canvas, food)
+        else:
+            draw_food()
         draw_score()
         
         # 直接调用 move_snake
@@ -4810,13 +5030,17 @@ def _start_main_game_impl():
                     trail_alpha = (i / trail_length) * self.alpha
                     if trail_alpha > 0.1:
                         trail_size = self.size * 0.5 * trail_alpha
-                        canvas.create_oval(
-                            trail_x - trail_size, trail_y - trail_size,
-                            trail_x + trail_size, trail_y + trail_size,
-                            fill=self.color,
-                            stipple='gray50',
-                            outline=""
-                        )
+                        runner = getattr(MainGame, '_RUN_SELF', None)
+                        if runner is not None and hasattr(runner, 'draw_particle_oval'):
+                            runner.draw_particle_oval(canvas, trail_x - trail_size, trail_y - trail_size, trail_x + trail_size, trail_y + trail_size, fill=self.color, stipple='gray50')
+                        else:
+                            canvas.create_oval(
+                                trail_x - trail_size, trail_y - trail_size,
+                                trail_x + trail_size, trail_y + trail_size,
+                                fill=self.color,
+                                stipple='gray50',
+                                outline=""
+                            )
             
             # 预计算五角星点
             points = []
@@ -4839,14 +5063,19 @@ def _start_main_game_impl():
                     self.y + math.sin(angle) * inner_size
                 ])
             
-            # 优化星星绘制
-            canvas.create_polygon(
-                points,
-                fill=self.color,
-                outline="white" if self.alpha > 0.7 else "",
-                width=1,
-                stipple='gray50' if self.alpha < 0.5 else ''
-            )
+            # 优化星星绘制（优先使用 runner 的方法）
+            runner = getattr(MainGame, '_RUN_SELF', None)
+            if runner is not None and hasattr(runner, 'draw_star_particle'):
+                # 传入整个 self，让 runner 统一绘制
+                runner.draw_star_particle(canvas, self)
+            else:
+                canvas.create_polygon(
+                    points,
+                    fill=self.color,
+                    outline="white" if self.alpha > 0.7 else "",
+                    width=1,
+                    stipple='gray50' if self.alpha < 0.5 else ''
+                )
     
     # 在 move_snake 函数之前添加
     class CelebrationFirework:
@@ -4893,17 +5122,23 @@ def _start_main_game_impl():
                 color = random.choice(self.colors)
                 size = random.uniform(2, 6)
                 
-                # 立即创建画布元素
-                # 光晕
-                glow_id = self.canvas.create_oval(
-                    base_x, base_y, base_x, base_y,
-                    fill=color, outline='', stipple='gray25', tags="celebration_firework"
-                )
+                # 立即创建画布元素（优先使用 MainGame 的绘制助手）
+                runner = getattr(MainGame, '_RUN_SELF', None)
+                if runner is not None and hasattr(runner, 'draw_particle_oval'):
+                    glow_id = runner.draw_particle_oval(self.canvas, base_x, base_y, base_x, base_y, fill=color, stipple='gray25')
+                else:
+                    glow_id = self.canvas.create_oval(
+                        base_x, base_y, base_x, base_y,
+                        fill=color, outline='', stipple='gray25', tags="celebration_firework"
+                    )
                 # 核心
-                core_id = self.canvas.create_oval(
-                    base_x, base_y, base_x, base_y,
-                    fill=color, outline='', tags="celebration_firework"
-                )
+                if runner is not None and hasattr(runner, 'draw_particle_oval'):
+                    core_id = runner.draw_particle_oval(self.canvas, base_x, base_y, base_x, base_y, fill=color)
+                else:
+                    core_id = self.canvas.create_oval(
+                        base_x, base_y, base_x, base_y,
+                        fill=color, outline='', tags="celebration_firework"
+                    )
                 
                 particle = base_particle.copy()
                 particle.update({
@@ -4930,10 +5165,14 @@ def _start_main_game_impl():
                 # 预创建9段线段用于轨迹
                 segment_ids = []
                 for _ in range(9):
-                    seg_id = self.canvas.create_line(
-                        base_x, base_y, base_x, base_y,
-                        fill=color, width=1, tags="celebration_firework", state='hidden', capstyle=tk.ROUND
-                    )
+                    runner = getattr(MainGame, '_RUN_SELF', None)
+                    if runner is not None and hasattr(runner, 'draw_particle_line'):
+                        seg_id = runner.draw_particle_line(self.canvas, base_x, base_y, base_x, base_y, fill=color, width=1)
+                    else:
+                        seg_id = self.canvas.create_line(
+                            base_x, base_y, base_x, base_y,
+                            fill=color, width=1, tags="celebration_firework", state='hidden', capstyle=tk.ROUND
+                        )
                     segment_ids.append(seg_id)
                 
                 particle = base_particle.copy()
@@ -5143,6 +5382,7 @@ def _start_main_game_impl():
                     
                     def update_death_particles():
                         nonlocal death_particles
+                        runner = getattr(MainGame, '_RUN_SELF', None)
                         canvas.delete("all")  # 清除所有元素
                         canvas.create_image(0, 0, anchor=tk.NW, image=bg_image)
                         
@@ -5185,22 +5425,28 @@ def _start_main_game_impl():
                                 if p['type'] == 'circle':
                                     # 发光效果
                                     glow_size = p['size'] * 1.8
-                                    canvas.create_oval(
-                                        p['x'] - glow_size, p['y'] - glow_size,
-                                        p['x'] + glow_size, p['y'] + glow_size,
-                                        fill="",
-                                        outline=p['color'],
-                                        width=1,
-                                        stipple='gray50'
-                                    )
+                                    if runner is not None and hasattr(runner, 'draw_particle_oval'):
+                                        runner.draw_particle_oval(canvas, p['x'] - glow_size, p['y'] - glow_size, p['x'] + glow_size, p['y'] + glow_size, fill="", stipple='gray50', width=1)
+                                    else:
+                                        canvas.create_oval(
+                                            p['x'] - glow_size, p['y'] - glow_size,
+                                            p['x'] + glow_size, p['y'] + glow_size,
+                                            fill="",
+                                            outline=p['color'],
+                                            width=1,
+                                            stipple='gray50'
+                                        )
                                     
                                     # 主粒子
-                                    canvas.create_oval(
-                                        p['x'] - p['size'], p['y'] - p['size'],
-                                        p['x'] + p['size'], p['y'] + p['size'],
-                                        fill=p['color'],
-                                        outline=""
-                                    )
+                                    if runner is not None and hasattr(runner, 'draw_particle_oval'):
+                                        runner.draw_particle_oval(canvas, p['x'] - p['size'], p['y'] - p['size'], p['x'] + p['size'], p['y'] + p['size'], fill=p['color'], width=0)
+                                    else:
+                                        canvas.create_oval(
+                                            p['x'] - p['size'], p['y'] - p['size'],
+                                            p['x'] + p['size'], p['y'] + p['size'],
+                                            fill=p['color'],
+                                            outline=""
+                                        )
                                 
                                 elif p['type'] == 'star':
                                     points = []
@@ -5210,21 +5456,27 @@ def _start_main_game_impl():
                                             p['x'] + math.cos(angle) * p['size'],
                                             p['y'] + math.sin(angle) * p['size']
                                         ])
-                                    canvas.create_polygon(
-                                        points,
-                                        fill=p['color'],
-                                        outline=""
-                                    )
+                                    if runner is not None and hasattr(runner, 'draw_particle_polygon'):
+                                        runner.draw_particle_polygon(canvas, points, fill=p['color'], outline="")
+                                    else:
+                                        canvas.create_polygon(
+                                            points,
+                                            fill=p['color'],
+                                            outline=""
+                                        )
                                 
                                 else:  # spark
                                     end_x = p['x'] + math.cos(p['angle']) * p['size'] * 2
                                     end_y = p['y'] + math.sin(p['angle']) * p['size'] * 2
-                                    canvas.create_line(
-                                        p['x'], p['y'],
-                                        end_x, end_y,
-                                        fill=p['color'],
-                                        width=2
-                                    )
+                                    if runner is not None and hasattr(runner, 'draw_particle_line'):
+                                        runner.draw_particle_line(canvas, p['x'], p['y'], end_x, end_y, fill=p['color'], width=2)
+                                    else:
+                                        canvas.create_line(
+                                            p['x'], p['y'],
+                                            end_x, end_y,
+                                            fill=p['color'],
+                                            width=2
+                                        )
                         
                         death_particles = new_particles
                         if death_particles:
@@ -5526,6 +5778,20 @@ def _start_main_game_impl():
         # 更新粒子效果
         update_particles()
         
+        # 在每次移动后把关键局部状态写回 runner（如果存在），保持桥接同步
+        _runner = getattr(MainGame, '_RUN_SELF', None)
+        if _runner is not None:
+            try:
+                # 列出常用的可变运行时状态并写回到实例
+                for _name in ('snake', 'snake_direction', 'current_score', 'snake_speed', 'selected_bg', 'color_chose', 'food', 'game_running', 'game_paused', 'particles', 'ripple_particles', 'milestone_particles'):
+                    try:
+                        if _name in locals():
+                            setattr(_runner, _name, locals()[_name])
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
         # 使用 snake_speed 作为主定时器（单位毫秒），保证速度与原逻辑一致
         if game_running:
             delay = max(1, int(snake_speed))
@@ -5730,15 +5996,30 @@ def _start_main_game_impl():
             # 销毁游戏窗口
             window.destroy()
             
-            # 显示开始页面
-            start_page.window.deiconify()
-            start_page.window.focus_force()
+            # 尝试显示开始页面（如果它仍然存在）
+            try:
+                if 'start_page' in globals() and hasattr(start_page, 'window'):
+                    try:
+                        if start_page.window.winfo_exists():
+                            start_page.window.deiconify()
+                            start_page.window.focus_force()
+                    except Exception:
+                        # start_page.window 可能已被销毁或不可用，忽略
+                        pass
+            except Exception:
+                pass
             
         except Exception as e:
             print(f"关闭游戏窗口时出错: {e}")
             # 确保程序不会卡死
-            if 'window' in locals() and window.winfo_exists():
-                window.destroy()
+            try:
+                if 'window' in locals() and window.winfo_exists():
+                    try:
+                        window.destroy()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
     
     # 设置窗口关闭处理
     window.protocol("WM_DELETE_WINDOW", on_game_closing)
