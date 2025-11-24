@@ -5122,23 +5122,16 @@ def _start_main_game_impl():
                 color = random.choice(self.colors)
                 size = random.uniform(2, 6)
                 
-                # 立即创建画布元素（优先使用 MainGame 的绘制助手）
-                runner = getattr(MainGame, '_RUN_SELF', None)
-                if runner is not None and hasattr(runner, 'draw_particle_oval'):
-                    glow_id = runner.draw_particle_oval(self.canvas, base_x, base_y, base_x, base_y, fill=color, stipple='gray25')
-                else:
-                    glow_id = self.canvas.create_oval(
-                        base_x, base_y, base_x, base_y,
-                        fill=color, outline='', stipple='gray25', tags="celebration_firework"
-                    )
+                # 立即创建画布元素（保留原始详细参数以恢复视觉效果）
+                glow_id = self.canvas.create_oval(
+                    base_x, base_y, base_x, base_y,
+                    fill=color, outline='', stipple='gray25', tags="celebration_firework"
+                )
                 # 核心
-                if runner is not None and hasattr(runner, 'draw_particle_oval'):
-                    core_id = runner.draw_particle_oval(self.canvas, base_x, base_y, base_x, base_y, fill=color)
-                else:
-                    core_id = self.canvas.create_oval(
-                        base_x, base_y, base_x, base_y,
-                        fill=color, outline='', tags="celebration_firework"
-                    )
+                core_id = self.canvas.create_oval(
+                    base_x, base_y, base_x, base_y,
+                    fill=color, outline='', tags="celebration_firework"
+                )
                 
                 particle = base_particle.copy()
                 particle.update({
@@ -5165,14 +5158,10 @@ def _start_main_game_impl():
                 # 预创建9段线段用于轨迹
                 segment_ids = []
                 for _ in range(9):
-                    runner = getattr(MainGame, '_RUN_SELF', None)
-                    if runner is not None and hasattr(runner, 'draw_particle_line'):
-                        seg_id = runner.draw_particle_line(self.canvas, base_x, base_y, base_x, base_y, fill=color, width=1)
-                    else:
-                        seg_id = self.canvas.create_line(
-                            base_x, base_y, base_x, base_y,
-                            fill=color, width=1, tags="celebration_firework", state='hidden', capstyle=tk.ROUND
-                        )
+                    seg_id = self.canvas.create_line(
+                        base_x, base_y, base_x, base_y,
+                        fill=color, width=1, tags="celebration_firework", state='hidden', capstyle=tk.ROUND
+                    )
                     segment_ids.append(seg_id)
                 
                 particle = base_particle.copy()
@@ -5425,15 +5414,16 @@ def _start_main_game_impl():
                                 if p['type'] == 'circle':
                                     # 发光效果
                                     glow_size = p['size'] * 1.8
+                                    # 绘制光晕：使用填充并取消 outline，以避免出现可见黑色边环
                                     if runner is not None and hasattr(runner, 'draw_particle_oval'):
-                                        runner.draw_particle_oval(canvas, p['x'] - glow_size, p['y'] - glow_size, p['x'] + glow_size, p['y'] + glow_size, fill="", stipple='gray50', width=1)
+                                        runner.draw_particle_oval(canvas, p['x'] - glow_size, p['y'] - glow_size, p['x'] + glow_size, p['y'] + glow_size, fill=p['color'], stipple='gray50', width=0)
                                     else:
                                         canvas.create_oval(
                                             p['x'] - glow_size, p['y'] - glow_size,
                                             p['x'] + glow_size, p['y'] + glow_size,
-                                            fill="",
-                                            outline=p['color'],
-                                            width=1,
+                                            fill=p['color'],
+                                            outline="",
+                                            width=0,
                                             stipple='gray50'
                                         )
                                     
